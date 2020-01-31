@@ -5,6 +5,8 @@ import torch.nn.init as init
 from torch.nn.parameter import Parameter
 import math 
 
+record_params = []
+
 class Model(nn.Module):
 	def __init__(self, *args, **kwargs):
 		super(Model, self).__init__()
@@ -49,6 +51,11 @@ class Model(nn.Module):
 					grad_fn.register_hook(wrapper)
 		self.is_built = True
 		return result
+
+	def record(self):
+		def set_record_flag(obj):
+			obj.record = True
+		self.apply(set_record_flag)
 
 class conv2D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True, gropus=1):
@@ -99,6 +106,48 @@ class conv2D(Model):
 	def forward(self, x):
 		return F.conv2d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
 
+class conv1D(Model):
+	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True, gropus=1):
+		self.size = size
+		self.outchn = outchn
+		self.stride = stride
+		self.usebias = usebias
+		self.gropus = gropus
+		self.dilation_rate = dilation_rate
+		assert (pad in ['VALID','SAME_LEFT'])
+		self.pad = pad 
+
+	def _parse_args(self, input_shape):
+		inchannel = input_shape[1]
+		# parse args
+		if self.pad == 'VALID':
+			self.pad = 0
+		else:
+			self.pad = self.size//2
+		self.size = [self.outchn, inchannel // self.gropus, self.size]
+
+	def build(self, *inputs):
+		# print('building...')
+		inp = inputs[0]
+		self._parse_args(inp.shape)
+		self.weight = Parameter(torch.Tensor(*self.size))
+		if self.usebias:
+			self.bias = Parameter(torch.Tensor(self.outchn))
+		else:
+			self.register_parameter('bias', None)
+		self.reset_params()
+
+	def reset_params(self):
+		init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+		if self.bias is not None:
+			fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+			bound = 1 / math.sqrt(fan_in)
+			init.uniform_(self.bias, -bound, bound)
+
+	def forward(self, x):
+		return F.conv1d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
+
+
 class fclayer(Model):
 	def initialize(self, outsize, usebias=True, norm=False):
 		self.outsize = outsize
@@ -143,7 +192,7 @@ class BatchNorm(Model):
 	# 				 'running_mean', 'running_var', 'num_batches_tracked',
 	# 				 'num_features', 'affine', 'weight', 'bias']
 
-	def initialize(self, eps=1e-5, momentum=0.1, affine=True,
+	def initialize(self, eps=2e-5, momentum=0.01, affine=True,
 				 track_running_stats=True):
 		self.eps = eps
 		self.momentum = momentum
@@ -234,3 +283,59 @@ def activation(x, act, **kwargs):
 		return F.tanh(x)
 	elif act==6:
 		return torch.sigmoid(x)
+
+class graphConvLayer(Model):
+	def __init__(self, outsize, adj_mtx=None, adj_fn=None, values=None, usebias=True):
+		assert (adj_mtx is None) ^ (adj_fn is None), 'Assign either adj_mtx or adj_fn' 
+		self.outsize = outsize
+		self.adj_mtx = adj_mtx
+		self.adj_fn = adj_fn
+		self.values = values
+		self.usebias = usebias
+		self.normalized = False
+
+	def _parse_args(self, input_shape):
+		# set size
+		insize = input_shape[-1]
+		self.size = [self.outsize, insize]
+
+	def build(self, *inputs):
+		inp = inputs[0]
+		self._parse_args(inp.shape)
+		self.weight = Parameter(torch.Tensor(*self.size))
+		if self.usebias:
+			self.bias = Parameter(torch.Tensor(self.outsize))
+		else:
+			self.register_parameter('bias', None)
+		self.reset_params()
+
+	def reset_params(self):
+		init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+		if self.bias is not None:
+			fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+			bound = 1 / math.sqrt(fan_in)
+			init.uniform_(self.bias, -bound, bound)
+
+	def _normalize_adj_mtx(self, mtx):
+		with torch.no_grad():
+			S = torch.sum(mtx, dim=1)
+			S = torch.sqrt(S)
+			S = 1. / S
+			S = torch.diag(S)
+			I = torch.eye(S.shape[0])
+			A_ = (mtx + I) 
+			A_ = torch.mm(S, A_)
+			A_ = torch.mm(A_, S)
+		return A_
+
+	def forward(self, x):
+		if self.adj_mtx is not None:
+			if not self.normalized:
+				self.adj_mtx = self._normalize_adj_mtx(self.adj_mtx)
+				self.normalized = True
+		else:
+			A = self.adj_fn(x)
+		res = torch.mm(A, x)
+		res = F.linear(res, self.weight, self.bias)
+		return res 
+		
