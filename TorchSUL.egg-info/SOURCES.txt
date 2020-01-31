@@ -1,0 +1,11 @@
+README.md
+setup.py
+TorchSUL/DataReader.py
+TorchSUL/Layers.py
+TorchSUL/Model.py
+TorchSUL/__init__.py
+TorchSUL/sul_tool.py
+TorchSUL.egg-info/PKG-INFO
+TorchSUL.egg-info/SOURCES.txt
+TorchSUL.egg-info/dependency_links.txt
+TorchSUL.egg-info/top_level.txt
