@@ -3,7 +3,7 @@ from . import Layers
 from . import Model
 from . import sul_tool
 
-__all__==[
+__all__ = [
 	'DataReader',
 	'Layers',
 	'Model',
