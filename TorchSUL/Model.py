@@ -124,6 +124,27 @@ class ConvLayer1D(Model):
 			x = L.activation(x, self.activation)
 		return x 
 
+class ConvLayer3D(Model):
+	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
+		self.conv = L.conv3D(size, outchn, stride, pad, dilation_rate, usebias, groups)
+		if batch_norm:
+			self.bn = L.BatchNorm(affine=affine)
+		self.batch_norm = batch_norm
+		self.activation = activation
+		if self.activation == PARAM_PRELU:
+			self.act = torch.nn.PReLU(num_parameters=outchn)
+		elif self.activation==PARAM_PRELU1:
+			self.act = torch.nn.PReLU(num_parameters=1)
+	def forward(self, x):
+		x = self.conv(x)
+		if self.batch_norm:
+			x = self.bn(x)
+		if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
+			x = self.act(x)
+		else:
+			x = L.activation(x, self.activation)
+		return x 
+		
 class Dense(Model):
 	def initialize(self, outsize, batch_norm=False, affine=True, activation=-1 , usebias=True, norm=False):
 		self.fc = L.fclayer(outsize, usebias, norm)
