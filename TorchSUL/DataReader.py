@@ -2,7 +2,8 @@ from multiprocessing import Pool
 import numpy as np 
 import random 
 import time 
-import concurrent.futures
+# import concurrent.futures
+from multiprocessing.pool import ThreadPool
 
 # A simple data reader.
 # You must set: process function, sample policy (default random sample), process number (default 1), gpu number (default 1)
@@ -21,7 +22,8 @@ class DataReader():
 		self.gpus = gpus
 		self.policy = sample_policy
 		self.pool = Pool(processes=processes)
-		self.exe = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+		# self.exe = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+		self.tpool = ThreadPool(processes=2)
 
 	def set_data(self, data):
 		self.data = data 
@@ -46,12 +48,14 @@ class DataReader():
 
 	def get_next(self):
 		assert self.ps is not None, 'You must call prefetch before the first iteration'
-		result = self.ps.result()
+		# result = self.ps.result()
+		result = self.ps.get()
 		self.prefetch()
 		return result
 
 	def prefetch(self):
-		self.ps = self.exe.submit(self._fetch_func)
+		# self.ps = self.exe.submit(self._fetch_func)
+		self.ps = self.tpool.apply_async(self._fetch_func)
 
 	def _fetch_func(self):
 		ps = self.prefetch_inner()
