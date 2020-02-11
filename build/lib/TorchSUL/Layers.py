@@ -7,6 +7,11 @@ import math
 
 record_params = []
 
+def _resnet_normal(tensor):
+	fan_in, fan_out = init._calculate_fan_in_and_fan_out(tensor)
+	std = math.sqrt(2.0 / float(fan_out))
+	return init._no_grad_normal_(tensor, 0., std)
+
 class Model(nn.Module):
 	def __init__(self, *args, **kwargs):
 		super(Model, self).__init__()
@@ -97,7 +102,7 @@ class conv2D(Model):
 		self.reset_params()
 
 	def reset_params(self):
-		init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+		_resnet_normal(self.weight)
 		if self.bias is not None:
 			fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
 			bound = 1 / math.sqrt(fan_in)
@@ -214,7 +219,9 @@ class fclayer(Model):
 
 	def reset_params(self):
 		# init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-		init.normal_(self.weight, std=0.01)
+		# init.normal_(self.weight, std=0.01)
+		_resnet_normal(self.weight)
+		print('Reset fc params...')
 		if self.bias is not None:
 			fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
 			bound = 1 / math.sqrt(fan_in)
@@ -222,9 +229,10 @@ class fclayer(Model):
 
 	def forward(self, x):
 		if self.norm:
-			norm = x.norm(p=2, dim=1, keepdim=True)
+			with torch.no_grad():
+				norm = x.norm(p=2, dim=1, keepdim=True)
+				wnorm = self.weight.norm(p=2,dim=1, keepdim=True)
 			x = x / norm
-			wnorm = self.weight.norm(p=2,dim=1, keepdim=True)
 			weight = self.weight / wnorm
 		else:
 			weight = self.weight
