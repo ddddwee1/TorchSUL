@@ -15,7 +15,7 @@ def _resnet_normal(tensor):
 class Model(nn.Module):
 	def __init__(self, *args, **kwargs):
 		super(Model, self).__init__()
-		self.is_built = torch.Tensor([False])
+		self.is_built = False
 		self.initialize(*args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
@@ -81,14 +81,64 @@ class conv2D(Model):
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
-				self.pad = (self.size[0]//2, self.size[1]//2)
+				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size-1 ))//2)
 			self.size = [self.outchn, inchannel // self.gropus, self.size[0], self.size[1]]
 		else:
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
-				self.pad = self.size//2
+				self.pad = (self.size + (self.dilation_rate-1) * ( self.size-1 ))//2
 			self.size = [self.outchn, inchannel // self.gropus, self.size, self.size]
+
+	def build(self, *inputs):
+		# print('building...')
+		inp = inputs[0]
+		self._parse_args(inp.shape)
+		self.weight = Parameter(torch.Tensor(*self.size))
+		if self.usebias:
+			self.bias = Parameter(torch.Tensor(self.outchn))
+		else:
+			self.register_parameter('bias', None)
+		self.reset_params()
+
+	def reset_params(self):
+		_resnet_normal(self.weight)
+		if self.bias is not None:
+			fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+			bound = 1 / math.sqrt(fan_in)
+			init.uniform_(self.bias, -bound, bound)
+
+	def forward(self, x):
+		return F.conv2d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
+
+class dwconv2D(Model):
+	# depth-wise conv2d
+	def initialize(self, size, multiplier, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True):
+		self.size = size
+		self.multiplier = multiplier
+		self.stride = stride
+		self.usebias = usebias
+		self.dilation_rate = dilation_rate
+		assert (pad in ['VALID','SAME_LEFT'])
+		self.pad = pad 
+
+	def _parse_args(self, input_shape):
+		inchannel = input_shape[1]
+		self.gropus = inchannel
+		# parse args
+		if isinstance(self.size,list):
+			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
+			if self.pad == 'VALID':
+				self.pad = 0
+			else:
+				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size-1 ))//2)
+			self.size = [multiplier * inchannel, 1, self.size[0], self.size[1]]
+		else:
+			if self.pad == 'VALID':
+				self.pad = 0
+			else:
+				self.pad = (self.size + (self.dilation_rate-1) * ( self.size-1 ))//2
+			self.size = [multiplier * inchannel, 1, self.size, self.size]
 
 	def build(self, *inputs):
 		# print('building...')
@@ -128,7 +178,7 @@ class conv1D(Model):
 		if self.pad == 'VALID':
 			self.pad = 0
 		else:
-			self.pad = self.size//2
+			self.pad = (self.size + (self.dilation_rate-1) * ( self.size-1 ))//2
 		self.size = [self.outchn, inchannel // self.gropus, self.size]
 
 	def build(self, *inputs):
@@ -171,13 +221,13 @@ class conv3D(Model):
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
-				self.pad = (self.size[0]//2, self.size[1]//2, self.size[2]//2)
+				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[2]+ (self.dilation_rate-1) * ( self.size-1 ))//2)
 			self.size = [self.outchn, inchannel // self.gropus, self.size[0], self.size[1], self.size[2]]
 		else:
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
-				self.pad = self.size//2
+				self.pad = (self.size + (self.dilation_rate-1) * ( self.size-1 ))//2
 			self.size = [self.outchn, inchannel // self.gropus, self.size, self.size, self.size]
 
 	def build(self, *inputs):
@@ -241,6 +291,65 @@ class fclayer(Model):
 def flatten(x):
 	x = x.view(x.size(0), -1)
 	return x 
+
+class MaxPool2d(Model):
+	def initialize(self, size, stride=1, pad='SAME_LEFT', dilation_rate=1):
+		self.size = size
+		self.stride = stride
+		self.pad = pad
+		self.dilation_rate = dilation_rate
+
+	def _parse_args(self, input_shape):
+		inchannel = input_shape[1]
+		# parse args
+		if isinstance(self.size,list) or isinstance(self.size, tuple):
+			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
+			if self.pad == 'VALID':
+				self.pad = 0
+			else:
+				self.pad = (self.size[0]//2, self.size[1]//2, self.size[2]//2)
+		else:
+			if self.pad == 'VALID':
+				self.pad = 0
+			else:
+				self.pad = self.size//2
+
+	def build(self, *inputs):
+		# print('building...')
+		inp = inputs[0]
+		self._parse_args(inp.shape)
+
+	def forward(self, x):
+		return F.max_pool2d(x, self.size, self.stride, self.pad, self.dilation_rate, False, False)
+
+class AvgPool2d(Model):
+	def initialize(self, size, stride=1, pad='SAME_LEFT'):
+		self.size = size
+		self.stride = stride
+		self.pad = pad
+
+	def _parse_args(self, input_shape):
+		inchannel = input_shape[1]
+		# parse args
+		if isinstance(self.size,list) or isinstance(self.size, tuple):
+			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
+			if self.pad == 'VALID':
+				self.pad = 0
+			else:
+				self.pad = (self.size[0]//2, self.size[1]//2, self.size[2]//2)
+		else:
+			if self.pad == 'VALID':
+				self.pad = 0
+			else:
+				self.pad = self.size//2
+
+	def build(self, *inputs):
+		# print('building...')
+		inp = inputs[0]
+		self._parse_args(inp.shape)
+
+	def forward(self, x):
+		return F.avg_pool2d(x, self.size, self.stride, self.pad, False, True)
 
 class BatchNorm(Model):
 	# _version = 2

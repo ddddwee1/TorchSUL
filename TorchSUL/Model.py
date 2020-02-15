@@ -10,6 +10,8 @@ activation = L.activation
 flatten = L.flatten
 GlobalAvgPool = L.GlobalAvgPool2D
 BatchNorm = L.BatchNorm
+MaxPool2D = L.MaxPool2d
+AvgPool2D = L.AvgPool2d
 
 # activation const
 PARAM_RELU = 0
@@ -81,6 +83,40 @@ class ConvLayer(Model):
 		self.activation = activation
 		if self.activation == PARAM_PRELU:
 			self.act = torch.nn.PReLU(num_parameters=outchn)
+		elif self.activation==PARAM_PRELU1:
+			self.act = torch.nn.PReLU(num_parameters=1)
+	def forward(self, x):
+		x = self.conv(x)
+		if self.batch_norm:
+			x = self.bn(x)
+		if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
+			x = self.act(x)
+		else:
+			x = L.activation(x, self.activation)
+		if hasattr(self, 'record'):
+			if self.record:
+				# do record
+				res = {}
+				for p in self.named_parameters():
+					res[p[0]] = p[1]
+				for p in self.named_buffers():
+					res[p[0]] = p[1]
+				L.record_params.append(res)
+			self.record = False
+		return x 
+
+class DWConvLayer(Model):
+	def initialize(self, size, multiplier, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
+		self.conv = L.conv2D(size, multiplier, stride, pad, dilation_rate, usebias, groups)
+		if batch_norm:
+			self.bn = L.BatchNorm(affine=affine)
+		self.batch_norm = batch_norm
+		self.activation = activation
+	def build(self, *inputs):
+		inp = inputs[0]
+		inchannel = inp.shape[1]
+		if self.activation == PARAM_PRELU:
+			self.act = torch.nn.PReLU(num_parameters=inchannel*multiplier)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
 	def forward(self, x):
