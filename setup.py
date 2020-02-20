@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup_args = dict(
     name='TorchSUL',
-    version='0.1.7',
+    version='0.1.8',
     description='Simple but useful layers for Pytorch',
     packages=find_packages(),
     long_description=long_description,

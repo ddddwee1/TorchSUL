@@ -132,13 +132,13 @@ class dwconv2D(Model):
 				self.pad = 0
 			else:
 				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size-1 ))//2)
-			self.size = [multiplier * inchannel, 1, self.size[0], self.size[1]]
+			self.size = [self.multiplier * inchannel, 1, self.size[0], self.size[1]]
 		else:
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
 				self.pad = (self.size + (self.dilation_rate-1) * ( self.size-1 ))//2
-			self.size = [multiplier * inchannel, 1, self.size, self.size]
+			self.size = [self.multiplier * inchannel, 1, self.size, self.size]
 
 	def build(self, *inputs):
 		# print('building...')
