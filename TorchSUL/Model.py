@@ -107,16 +107,17 @@ class ConvLayer(Model):
 
 class DWConvLayer(Model):
 	def initialize(self, size, multiplier, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
-		self.conv = L.conv2D(size, multiplier, stride, pad, dilation_rate, usebias, groups)
+		self.conv = L.dwconv2D(size, multiplier, stride, pad, dilation_rate, usebias)
 		if batch_norm:
 			self.bn = L.BatchNorm(affine=affine)
 		self.batch_norm = batch_norm
 		self.activation = activation
+		self.multiplier = multiplier
 	def build(self, *inputs):
 		inp = inputs[0]
 		inchannel = inp.shape[1]
 		if self.activation == PARAM_PRELU:
-			self.act = torch.nn.PReLU(num_parameters=inchannel*multiplier)
+			self.act = torch.nn.PReLU(num_parameters=inchannel*self.multiplier)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
 	def forward(self, x):
