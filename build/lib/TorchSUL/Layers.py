@@ -7,6 +7,7 @@ import math
 
 record_params = []
 
+
 def _resnet_normal(tensor):
 	fan_in, fan_out = init._calculate_fan_in_and_fan_out(tensor)
 	std = math.sqrt(2.0 / float(fan_out))
@@ -292,6 +293,10 @@ def flatten(x):
 	x = x.view(x.size(0), -1)
 	return x 
 
+class Flatten(Model):
+	def forward(self, x):
+		return flatten(x)
+
 class MaxPool2d(Model):
 	def initialize(self, size, stride=1, pad='SAME_LEFT', dilation_rate=1):
 		self.size = size
@@ -435,6 +440,10 @@ def GlobalAvgPool2D(x):
 	x = x.mean(dim=(2,3), keepdim=True)
 	return x 
 
+class GlobalAvgPool2DLayer(Model):
+	def forward(self, x):
+		return GlobalAvgPool2D(x)
+
 def activation(x, act, **kwargs):
 	if act==-1:
 		return x
@@ -448,6 +457,19 @@ def activation(x, act, **kwargs):
 		return F.tanh(x)
 	elif act==6:
 		return torch.sigmoid(x)
+
+class Activation(Model):
+	def initialize(self, act):
+		self.act = act 
+		if act==8:
+			self.act = torch.nn.PReLU(num_parameters=outchn)
+		elif act==9:
+			self.act = torch.nn.PReLU(num_parameters=1)
+	def forward(self, x):
+		if self.act==8 or self.act==9:
+			return self.act(x)
+		else:
+			return activation(x, self.act)
 
 class graphConvLayer(Model):
 	def __init__(self, outsize, adj_mtx=None, adj_fn=None, values=None, usebias=True):
@@ -503,4 +525,5 @@ class graphConvLayer(Model):
 		res = torch.mm(A, x)
 		res = F.linear(res, self.weight, self.bias)
 		return res 
-		
+	
+

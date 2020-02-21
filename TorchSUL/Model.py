@@ -8,7 +8,9 @@ import os
 Model = L.Model
 activation = L.activation
 flatten = L.flatten
+Flatten = L.Flatten
 GlobalAvgPool = L.GlobalAvgPool2D
+GlobalAvgPoolLayer = L.GlobalAvgPool2DLayer
 BatchNorm = L.BatchNorm
 MaxPool2D = L.MaxPool2d
 AvgPool2D = L.AvgPool2d
@@ -24,6 +26,19 @@ PARAM_SIGMOID = 6
 PARAM_SWISH = 7
 PARAM_PRELU = 8
 PARAM_PRELU1 = 9
+
+def init_caffe_input(x):
+	global caffe_string, layer_counter
+	if not 'caffe_string' in globals():
+		caffe_string = ''
+	if not 'layer_counter' in globals():
+		layer_counter = 0
+	caffe_string += 'layer{\n'
+	caffe_string += ' name: "%s"\n'%x[1]()
+	caffe_string += ' type: "Input"\n'
+	caffe_string += ' top: "%s"\n'%x[1]()
+	caffe_string += ' input_param{\n  shape{\n   dim:%d\n   dim:%d\n   dim:%d\n   dim:%d\n  }\n }\n}\n'%(x[0].shape[0], x[0].shape[3], x[0].shape[1], x[0].shape[2])
+	layer_counter += 1 
 
 class Saver():
 	def __init__(self, module):
