@@ -15,6 +15,8 @@ def _resnet_normal(tensor):
 class Model(nn.Module):
 	def __init__(self, *args, **kwargs):
 		super(Model, self).__init__()
+		self._record = False
+		self._merge_bn = False
 		self.is_built = False
 		self.initialize(*args, **kwargs)
 
@@ -434,7 +436,7 @@ class BatchNorm(Model):
 			input, self.running_mean, self.running_var, self.weight, self.bias,
 			self.training or not self.track_running_stats,
 			exponential_average_factor, self.eps)
-		if hasattr(self, 'record'):
+		if hasattr(self, '_record'):
 			if self._record:
 				res = {}
 				for p in self.named_parameters():
