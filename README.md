@@ -17,7 +17,7 @@ You need to install the newest version of pytorch.
 Good, then just 
 
 ```
-pip install torchsul.
+pip install torchsul
 ```
 
 ## Projects 
