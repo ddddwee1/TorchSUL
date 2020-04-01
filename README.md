@@ -14,7 +14,11 @@ This package is created for better experience while using Pytorch.
 
 You need to install the newest version of pytorch.
 
-Good, then just pip install torchsul.
+Good, then just 
+
+```
+pip install torchsul.
+```
 
 ## Projects 
 
