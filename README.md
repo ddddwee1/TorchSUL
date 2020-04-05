@@ -17,7 +17,7 @@ You need to install the newest version of pytorch.
 Good, then just 
 
 ```
-pip install torchsul
+pip install --upgrade torchsul
 ```
 
 ## Projects 
@@ -35,6 +35,8 @@ You can find some examples in the "example" folder.
 - 3DCNN (Ji, Shuiwang, et al. "3D convolutional neural networks for human action recognition." IEEE transactions on pattern analysis and machine intelligence 35.1 (2012): 221-231)
 
 - Temporal Convolutional Network (Not the same) (Pavllo, Dario, et al. "3D human pose estimation in video with temporal convolutions and semi-supervised training." Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition. 2019)
+
+- Deng, Jiankang, et al. "Retinaface: Single-stage dense face localisation in the wild." arXiv preprint arXiv:1905.00641 (2019)
 
 - Model conversions 
 
