@@ -7,6 +7,7 @@ import os
 
 Model = L.Model
 activation = L.activation
+Activation = L.Activation
 flatten = L.flatten
 Flatten = L.Flatten
 GlobalAvgPool = L.GlobalAvgPool2D
@@ -14,6 +15,7 @@ GlobalAvgPoolLayer = L.GlobalAvgPool2DLayer
 BatchNorm = L.BatchNorm
 MaxPool2D = L.MaxPool2d
 AvgPool2D = L.AvgPool2d
+NNUpSample = L.NNUpSample
 
 # activation const
 PARAM_RELU = 0
@@ -165,8 +167,8 @@ class ConvLayer(Model):
 		return x 
 
 class DWConvLayer(Model):
-	def initialize(self, size, multiplier, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
-		self.conv = L.conv2D(size, multiplier, stride, pad, dilation_rate, usebias, groups)
+	def initialize(self, size, multiplier, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True):
+		self.conv = L.dwconv2D(size, multiplier, stride, pad, dilation_rate, usebias)
 		if batch_norm:
 			self.bn = L.BatchNorm(affine=affine)
 		self.batch_norm = batch_norm

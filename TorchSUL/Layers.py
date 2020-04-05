@@ -470,6 +470,29 @@ class GlobalAvgPool2DLayer(Model):
 	def forward(self, x):
 		return GlobalAvgPool2D(x)
 
+class NNUpSample(Model):
+	def initialize(self, scale):
+		self.scale = scale
+
+	def _parse_args(self, input_shape):
+		self.inchannel = input_shape[1]
+		self.size = [self.inchannel, 1, self.scale, self.scale]
+
+	def build(self, *inputs):
+		# print('building...')
+		inp = inputs[0]
+		self._parse_args(inp.shape)
+		self.weight = Parameter(torch.Tensor(*self.size))
+		self.register_parameter('bias', None)
+		self.reset_params()
+
+	def reset_params(self):
+		init.ones_(self.weight)
+
+	def forward(self, x):
+		w = self.weight.detach()
+		return F.conv_transpose2d(x, w, self.bias, self.scale, 0, 0, self.inchannel, 1)
+
 def activation(x, act, **kwargs):
 	if act==-1:
 		return x
