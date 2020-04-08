@@ -10,6 +10,8 @@ This package is created for better experience while using Pytorch.
 
 3. Multi-platform. I have made the same APIs for pytorch, TF, MXNet, and a conversion tool to Caffe. 
 
+4. Some strange reason. Frameworks like TF, MXNet, Caffe, Paddle do not need to claim input shape to initialize layers, but frameworks like pytorch, torch, chainer require this. I prefer not to claim since it will be more convenient when building models (Why I need to care about previous layers when I only want to write forward computation?), so I modified pytorch module to support this. Also, it inlines with my [TF wrap-ups](https://github.com/ddddwee1/sul) so I can move my old code easily to the current package.
+
 ## Installation
 
 You need to install the newest version of pytorch.
