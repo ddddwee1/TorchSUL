@@ -173,11 +173,12 @@ class DWConvLayer(Model):
 			self.bn = L.BatchNorm(affine=affine)
 		self.batch_norm = batch_norm
 		self.activation = activation
+		self.multiplier = multiplier
 	def build(self, *inputs):
 		inp = inputs[0]
 		inchannel = inp.shape[1]
 		if self.activation == PARAM_PRELU:
-			self.act = torch.nn.PReLU(num_parameters=inchannel*multiplier)
+			self.act = torch.nn.PReLU(num_parameters=inchannel*self.multiplier)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
 	def forward(self, x):
