@@ -16,6 +16,7 @@ BatchNorm = L.BatchNorm
 MaxPool2D = L.MaxPool2d
 AvgPool2D = L.AvgPool2d
 NNUpSample = L.NNUpSample
+BilinearUpSample = L.BilinearUpSample
 
 # activation const
 PARAM_RELU = 0

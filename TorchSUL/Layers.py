@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.nn.init as init 
 from torch.nn.parameter import Parameter
 import math 
+import numpy as np 
 
 record_params = []
 
@@ -575,4 +576,33 @@ class graphConvLayer(Model):
 		res = F.linear(res, self.weight, self.bias)
 		return res 
 	
-
+class BilinearUpSample(Model):
+	def initialize(self, factor):
+		self.factor = factor
+		self.pad0 = factor//2 * 3 + factor%2
+	def build(self, *inputs):
+		inp = inputs[0]
+		self.inchn = inp.shape[1]
+		filter_size = 2*self.factor - self.factor%2
+		k = self.upsample_kernel(filter_size)
+		k = k[None, ...]
+		k = k[None, ...]
+		k = np.repeat(k, self.inchn, axis=0)
+		self.weight = Parameter(torch.from_numpy(k), requires_grad=False)
+	def upsample_kernel(self,size):
+		factor = (size +1)//2
+		if size%2==1:
+			center = factor - 1
+		else:
+			center = factor - 0.5
+		og = np.ogrid[:size, :size]
+		k = (1 - abs(og[0]-center)/factor) * (1-abs(og[1]-center)/factor)
+		return np.float32(k)
+	def forward(self, x):
+		x = F.pad(x, (1,1,1,1), 'replicate')
+		x = F.conv_transpose2d(x, self.weight, None, self.factor, self.pad0, 0, self.inchn, 1)
+		return x 
+	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+		pass
+	def _save_to_state_dict(self, destination, prefix, keep_vars):
+		pass
