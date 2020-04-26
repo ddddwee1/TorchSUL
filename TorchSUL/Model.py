@@ -65,22 +65,23 @@ class Saver():
 	def restore(self, path, strict=True):
 		print('Trying to load from:',path)
 		# print(path[-4:])
+		device = torch.device('cpu')
 		if path[-4:] == '.pth':
 			if not os.path.exists(path):
 				print('Path:',path, 'does not exsist.')
 			elif isinstance(self.model, nn.DataParallel):
-				self.model.module.load_state_dict(torch.load(path), strict=strict)
+				self.model.module.load_state_dict(torch.load(path, map_location=device), strict=strict)
 				print('Model loaded from:', path)
 			else:
-				self.model.load_state_dict(torch.load(path), strict=strict)
+				self.model.load_state_dict(torch.load(path, map_location=device), strict=strict)
 				print('Model loaded from:', path)
 		else:
 			path = self._get_checkpoint(path)
 			if path:
 				if isinstance(self.model, nn.DataParallel):
-					self.model.module.load_state_dict(torch.load(path), strict=strict)
+					self.model.module.load_state_dict(torch.load(path, map_location=device), strict=strict)
 				else:
-					self.model.load_state_dict(torch.load(path), strict=strict)
+					self.model.load_state_dict(torch.load(path, map_location=device), strict=strict)
 				print('Model loaded from:', path)
 			else:
 				print('No checkpoint found. No restoration will be performed.')
