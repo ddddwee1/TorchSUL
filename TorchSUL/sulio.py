@@ -3,6 +3,7 @@ import os.path as osp
 import pickle 
 import threading 
 import logging 
+import cv2 
 
 class DataFrame():
 	def __init__(self, foldername, mode='r', debug=False):
@@ -14,9 +15,9 @@ class DataFrame():
 		self._closed = False
 		self.logger = logging.getLogger('DataFrame')
 		if debug:
-			self.logger.setlevel(logging.DEBUG)
+			self.logger.setLevel(logging.DEBUG)
 		else:
-			self.logger.setlevel(logging.WARNING)
+			self.logger.setLevel(logging.WARNING)
 
 		if not osp.exists(foldername):
 			os.makedirs(foldername)
@@ -37,20 +38,27 @@ class DataFrame():
 	def write(self, bytedata, metadata=[]):
 		assert self.mode=='w', 'Must in write mode'
 		idxinfo_curr = [self.idxfile.tell(), len(bytedata)] # start position, datalength, 
+		if (bytedata is None) or (len(bytedata)==0):
+			self.logger.info('Write data length = 0')
+		else:
+			self.datafile.write(bytedata)
 		self.idxinfo[len(self.idxinfo)] = idxinfo_curr
 		self.metainfo[len(self.metainfo)] = metadata
-		self.datafile.write(bytedata)
 
 	def write_idx(self, idx, bytedata, metadata=[]):
 		assert self.mode=='w', 'Must in write mode'
-		idxinfo_curr = [self.idxfile.tell(), len(bytedata)] # start position, datalength, 
+		
 		if idx in self.idxinfo:
 			self.logger.warning('Duplicate index number: %d. This data will not be written to file.'%idx)
-		if len(bytedata)==0:
+		
+		if (bytedata is None) or (len(bytedata)==0):
 			self.logger.info('Write data length = 0')
+			idxinfo_curr = [self.idxfile.tell(), 0]
+		else:
+			idxinfo_curr = [self.idxfile.tell(), len(bytedata)] # start position, datalength, 
+			self.datafile.write(bytedata)
 		self.idxinfo[idx] = idxinfo_curr
 		self.metainfo[idx] = metadata
-		self.datafile.write(bytedata)
 
 	def read_meta(self, idx):
 		assert self.mode=='r', 'Must in read mode'
@@ -111,13 +119,13 @@ class ThreadedDataFrame():
 
 	def _write_idx(self, idx, bytedata, metadata):
 		self.lock.acquire()
-		self.df.write(bytedata, metadata)
+		self.df.write_idx(idx, bytedata, metadata)
 		self.lock.release()
 
 	def write_idx(self, idx, bytedata, metadata=[]):
 		assert self.mode=='w', 'Must in write mode'
 		# if there is a large speed gap between input and io write, this may cause memory problem 
-		th = threading.Thread(target=self._write, args=(idx, bytedata, metadata,))
+		th = threading.Thread(target=self._write_idx, args=(idx, bytedata, metadata,))
 		th.start()
 		th.join()
 
@@ -149,6 +157,22 @@ class ThreadedDataFrame():
 
 	def __len__(self):
 		return len(self.df)
+
+def decode_img(buf):
+	img = np.frombuffer(buf, dtype=np.uint8)
+	img = cv2.imdecode(img, cv2.IMREAD_COLOR)
+	return img 
+
+def encode_img(img, quality=95, img_format='jpg'):
+	jpg_formats = ['.JPG', '.JPEG']
+	png_formats = ['.PNG']
+	if img_fmt.upper() in jpg_formats:
+		encode_params = [cv2.IMWRITE_JPEG_QUALITY, quality]
+	elif img_fmt.upper() in png_formats:
+		encode_params = [cv2.IMWRITE_PNG_COMPRESSION, quality]
+	ret, buf = cv2.imencode(img_format, img, encode_params)
+	assert ret, 'failed to encode image'
+	return buf 
 
 if __name__=='__main__':
 	df = ThreadedDataFrame('./abc/', 'w')
