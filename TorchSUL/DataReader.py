@@ -16,6 +16,7 @@ class DataReader():
 		assert gpus >= 1,'GPU number must be a positive integer'
 		self.data = None
 		self.process_fn = lambda x:x
+		self.pre_process_fn = lambda x:x
 		self.post_process_fn = None
 		self.maxpos = None
 		self.bsize = bsize
@@ -41,6 +42,10 @@ class DataReader():
 	def set_process_fn(self, fn):
 		self.process_fn = fn 
 		print('DataReader: Process function set.')
+
+	def set_pre_process_fn(self, fn):
+		self.pre_process_fn = fn 
+		print('DataReader: Preprocess function set.')
 
 	def set_post_process_fn(self, fn):
 		self.post_process_fn = fn 
@@ -81,6 +86,7 @@ class DataReader():
 			self.position += self.bsize
 
 		res = [self.data[i] for i in idx]
+		res = self.pre_process_fn(res)
 		ps = self.pool.map_async(self.process_fn, res)
 		return ps 
 

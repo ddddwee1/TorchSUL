@@ -4,9 +4,11 @@ import pickle
 import threading 
 import logging 
 import cv2 
+from multiprocessing import Pool 
 
 class DataFrame():
 	def __init__(self, foldername, mode='r', debug=False):
+		print('Initializing sulio dataframe...')
 		assert mode in ['r', 'w'], 'only read or write mode'
 		foldername = osp.normpath(foldername)
 		basename = osp.basename(foldername)
@@ -53,10 +55,11 @@ class DataFrame():
 		
 		if (bytedata is None) or (len(bytedata)==0):
 			self.logger.info('Write data length = 0')
-			idxinfo_curr = [self.idxfile.tell(), 0]
+			idxinfo_curr = [self.datafile.tell(), 0]
 		else:
-			idxinfo_curr = [self.idxfile.tell(), len(bytedata)] # start position, datalength, 
+			idxinfo_curr = [self.datafile.tell(), len(bytedata)] # start position, datalength, 
 			self.datafile.write(bytedata)
+
 		self.idxinfo[idx] = idxinfo_curr
 		self.metainfo[idx] = metadata
 
@@ -99,6 +102,26 @@ class DataFrame():
 
 	def __len__(self):
 		return len(self.idxinfo)
+
+# TO-DO check whether it is faster
+# class MultiWorkerDataFrame():
+# 	def __init__(self, foldername, mode='r', worker=2, debug=False):
+# 		self.mode = mode 
+# 		self.lock = threading.Lock()
+# 		self.df = DataFrame(foldername, mode, debug=debug)
+# 		self.pool = Pool(processes=worker)
+
+# 	def read(self, idx):
+# 		return self.df.read(idx)
+
+# 	def read_meta(self, idx):
+# 		return self.df.read_meta(idx)
+
+# 	def read_data(self, idx):
+# 		return self.df.read_data(idx)
+
+# 	def read_multi(self, idxlist):
+
 
 class ThreadedDataFrame():
 	def __init__(self, foldername, mode='r', debug=False):
@@ -158,6 +181,13 @@ class ThreadedDataFrame():
 
 	def __len__(self):
 		return len(self.df)
+
+	def __getstate__(self):
+		d = {}
+		return d 
+
+	def __setstate__(self):
+		pass 
 
 def decode_img(buf):
 	img = np.frombuffer(buf, dtype=np.uint8)
