@@ -70,7 +70,8 @@ class DataFrame():
 		assert self.mode=='r', 'Must in read mode'
 		start_pos, datalen = self.idxinfo[idx]
 		if datalen==0:
-			return b''
+			# return b''
+			return None # None return should be more pythonic
 		else:
 			self.datafile.seek(start_pos)
 			data = self.datafile.read(datalen)
