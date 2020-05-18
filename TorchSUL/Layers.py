@@ -164,7 +164,7 @@ class dwconv2D(Model):
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size))
 		if self.usebias:
-			self.bias = Parameter(torch.Tensor(self.outchn))
+			self.bias = Parameter(torch.Tensor(self.size[0]))
 		else:
 			self.register_parameter('bias', None)
 		self.reset_params()

@@ -198,12 +198,45 @@ class DWConvLayer(Model):
 			x = L.activation(x, self.activation)
 
 		if record_flag:
+			# print(self._merge_bn)
 			# do record
-			res = {}
-			for p in self.named_parameters():
-				res[p[0]] = p[1]
-			for p in self.named_buffers():
-				res[p[0]] = p[1]
+			if self._merge_bn:
+				miu = self.bn.running_mean
+				var = self.bn.running_var
+				gamma = self.bn.weight
+				beta = self.bn.bias 
+				eps = self.bn.eps 
+				if gamma is None:
+					gamma = 1 
+				if beta is None:
+					beta = 0
+				weight = self.conv.weight
+				bias = self.conv.bias
+
+				if bias is not None:
+					b = gamma * (bias - miu) / torch.sqrt(eps + var) + beta 
+				else:
+					b = beta - (gamma * miu / torch.sqrt(eps + var))
+				bn_w = gamma / torch.sqrt(eps + var)
+				bn_w = bn_w.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+				w = bn_w * weight
+
+				res = {}
+				base_name = list(self.named_parameters())[0][0]
+				base_name = '.'.join(base_name.split('.')[:-1])
+				res[base_name+'.weight'] = w 
+				res[base_name+'.bias'] = b
+
+				if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
+					actw = self.act.weight
+					res['act.weight'] = actw
+				# print(res.keys())
+			else:
+				res = {}
+				for p in self.named_parameters():
+					res[p[0]] = p[1]
+				for p in self.named_buffers():
+					res[p[0]] = p[1]
 			L.record_params.append(res)
 		return x 
 
@@ -277,7 +310,7 @@ class Dense(Model):
 		if record_flag:
 			# print(self._merge_bn)
 			# do record
-			if self._merge_bn:
+			if hasattr(self, 'bn') and self._merge_bn:
 				miu = self.bn.running_mean
 				var = self.bn.running_var
 				gamma = self.bn.weight

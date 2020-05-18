@@ -15,10 +15,6 @@ class DataFrame():
 		self.basename = basename 
 		self.mode = mode
 		self._closed = False
-
-		# get logger 
-		logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
-		logging.root.setLevel(logging.NOTSET)
 		self.logger = logging.getLogger('DataFrame')
 		if debug:
 			self.logger.setLevel(logging.DEBUG)
@@ -43,7 +39,7 @@ class DataFrame():
 
 	def write(self, bytedata, metadata=[]):
 		assert self.mode=='w', 'Must in write mode'
-		idxinfo_curr = [self.datafile.tell(), len(bytedata)] # start position, datalength, 
+		idxinfo_curr = [self.idxfile.tell(), len(bytedata)] # start position, datalength, 
 		if (bytedata is None) or (len(bytedata)==0):
 			self.logger.info('Write data length = 0')
 		else:
@@ -92,8 +88,8 @@ class DataFrame():
 	def close(self):
 		if not self._closed:
 			if self.mode=='w':
-				self.logger.info(self.mode)
-				self.logger.info('Dumping meta data...')
+				print(self.mode)
+				print('Dumping meta data...')
 				pickle.dump(self.idxinfo, self.idxfile)
 				pickle.dump(self.metainfo, self.metafile)
 			self.idxfile.close()
@@ -107,12 +103,31 @@ class DataFrame():
 	def __len__(self):
 		return len(self.idxinfo)
 
+# TO-DO check whether it is faster
+# class MultiWorkerDataFrame():
+# 	def __init__(self, foldername, mode='r', worker=2, debug=False):
+# 		self.mode = mode 
+# 		self.lock = threading.Lock()
+# 		self.df = DataFrame(foldername, mode, debug=debug)
+# 		self.pool = Pool(processes=worker)
+
+# 	def read(self, idx):
+# 		return self.df.read(idx)
+
+# 	def read_meta(self, idx):
+# 		return self.df.read_meta(idx)
+
+# 	def read_data(self, idx):
+# 		return self.df.read_data(idx)
+
+# 	def read_multi(self, idxlist):
+
+
 class ThreadedDataFrame():
 	def __init__(self, foldername, mode='r', debug=False):
 		self.mode = mode 
 		self.lock = threading.Lock()
 		self.df = DataFrame(foldername, mode, debug=debug)
-		self.df.logger.warning('You are using threaded dataframe, which is probably slower than the normal dataframe. Be careful!')
 
 	def _write(self, bytedata, metadata):
 		self.lock.acquire()
