@@ -483,7 +483,7 @@ class NNUpSample(Model):
 		# print('building...')
 		inp = inputs[0]
 		self._parse_args(inp.shape)
-		self.weight = Parameter(torch.Tensor(*self.size))
+		self.weight = Parameter(torch.Tensor(*self.size), requires_grad=False)
 		self.register_parameter('bias', None)
 		self.reset_params()
 
@@ -491,7 +491,8 @@ class NNUpSample(Model):
 		init.ones_(self.weight)
 
 	def forward(self, x):
-		w = self.weight.detach()
+		# w = self.weight.detach()
+		w = self.weight
 		return F.conv_transpose2d(x, w, self.bias, self.scale, 0, 0, self.inchannel, 1)
 
 def activation(x, act, **kwargs):
