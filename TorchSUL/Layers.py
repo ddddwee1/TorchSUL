@@ -27,6 +27,9 @@ class Model(nn.Module):
 	def build(self, *inputs):
 		pass 
 
+	def build_forward(self, *inputs, **kwargs):
+		return self.forward(*inputs, **kwargs)
+
 	def __call__(self, *input, **kwargs):
 		if not self.is_built:
 			self.build(*input)
@@ -39,7 +42,10 @@ class Model(nn.Module):
 		if torch._C._get_tracing_state():
 			result = self._slow_forward(*input, **kwargs)
 		else:
-			result = self.forward(*input, **kwargs)
+			if not self.is_built:
+				result = self.build_forward(*input, **kwargs)
+			else:
+				result = self.forward(*input, **kwargs)
 		for hook in self._forward_hooks.values():
 			hook_result = hook(self, input, result)
 			if hook_result is not None:
@@ -523,14 +529,10 @@ class Activation(Model):
 			return activation(x, self.act)
 
 class graphConvLayer(Model):
-	def __init__(self, outsize, adj_mtx=None, adj_fn=None, values=None, usebias=True):
-		assert (adj_mtx is None) ^ (adj_fn is None), 'Assign either adj_mtx or adj_fn' 
+	def initialize(self, outsize, usebias=True, norm=True):
 		self.outsize = outsize
-		self.adj_mtx = adj_mtx
-		self.adj_fn = adj_fn
-		self.values = values
 		self.usebias = usebias
-		self.normalized = False
+		self.norm = norm 
 
 	def _parse_args(self, input_shape):
 		# set size
@@ -566,14 +568,12 @@ class graphConvLayer(Model):
 			A_ = torch.mm(A_, S)
 		return A_
 
-	def forward(self, x):
-		if self.adj_mtx is not None:
-			if not self.normalized:
-				self.adj_mtx = self._normalize_adj_mtx(self.adj_mtx)
-				self.normalized = True
-		else:
-			A = self.adj_fn(x)
-		res = torch.mm(A, x)
+	def forward(self, x, adj, affinity_grad=True):
+		if self.norm:
+			adj = self._normalize_adj_mtx(adj)
+		if not affinity_grad:
+			adj = adj.detach()
+		res = torch.mm(adj, x)
 		res = F.linear(res, self.weight, self.bias)
 		return res 
 	

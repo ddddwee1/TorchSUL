@@ -288,7 +288,7 @@ class Dense(Model):
 		self.batch_norm = batch_norm
 		self.activation = activation
 		if self.activation == PARAM_PRELU:
-			self.act = torch.nn.PReLU(num_parameters=outchn)
+			self.act = torch.nn.PReLU(num_parameters=outsize)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
 		if batch_norm:
@@ -408,19 +408,19 @@ class ConvLSTM(Model):
 		return cell, h 
 
 class GraphConvLayer(Model):
-	def initialize(self, outsize, adj_mtx=None, adj_fn=None, usebias=True, activation=-1, batch_norm=False):
-		self.GCL = L.graphConvLayer(outsize, adj_mtx=adj_mtx, adj_fn=adj_fn, usebias=usebias)
+	def initialize(self, outsize, usebias=True, norm=True, activation=-1, batch_norm=False):
+		self.GCL = L.graphConvLayer(outsize, usebias=usebias, norm=norm)
 		self.batch_norm = batch_norm
 		self.activation = activation
 		if batch_norm:
-			self.bn = L.batch_norm()
+			self.bn = L.BatchNorm()
 		if self.activation == PARAM_PRELU:
-			self.act = torch.nn.PReLU(num_parameters=outchn)
+			self.act = torch.nn.PReLU(num_parameters=outsize)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
 
-	def forward(self, x):
-		x = self.GCL(x)
+	def forward(self, x, adj, affinity_grad=True):
+		x = self.GCL(x, adj, affinity_grad)
 		if self.batch_norm:
 			x = self.bn(x)
 		if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
