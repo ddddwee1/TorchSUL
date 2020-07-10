@@ -129,6 +129,15 @@ class DistributedClassifier(M.Model):
 			if curr_idx == idx:
 				break 
 
+	def assign_center(self, idx, feat):
+		curr_idx = 0
+		for w in self.weights:
+			end_idx = min(idx - curr_idx, w.shape[0])
+			curr_idx += end_idx
+			if curr_idx==idx:
+				w.data[end_idx,:] = feat[:]
+				# print('Assign:', idx)
+
 	def forward(self, x, label, **kwargs):
 		if self.gpus is None:
 			# cpu mode, normal fc layer
