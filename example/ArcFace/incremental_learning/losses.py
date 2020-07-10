@@ -133,9 +133,13 @@ class DistributedClassifier(M.Model):
 		curr_idx = 0
 		for w in self.weights:
 			end_idx = min(idx - curr_idx, w.shape[0])
+			if end_idx<0:
+				print('ENDIDX less than 0')
+				break
 			curr_idx += end_idx
-			if curr_idx==idx:
+			if curr_idx==idx and end_idx!=w.shape[0]:
 				w.data[end_idx,:] = feat[:]
+				break 
 				# print('Assign:', idx)
 
 	def forward(self, x, label, **kwargs):
