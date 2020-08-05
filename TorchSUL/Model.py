@@ -49,6 +49,11 @@ def init_caffe_input(x):
 	caffe_string += ' input_param{\n  shape{\n   dim:%d\n   dim:%d\n   dim:%d\n   dim:%d\n  }\n }\n}\n'%(x[0].shape[0], x[0].shape[3], x[0].shape[1], x[0].shape[2])
 	layer_counter += 1 
 
+def init_model(model, *args, **kwargs):
+	# run one forward loop to initialize model 
+	with torch.no_grad():
+		return model(*args, **kwargs)
+
 class Saver():
 	def __init__(self, module):
 		self.model = module

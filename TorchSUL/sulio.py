@@ -205,6 +205,12 @@ def encode_img(img, quality=95, img_format='jpg'):
 	assert ret, 'failed to encode image'
 	return buf 
 
+def dump_pkl(data, name):
+	pickle.dump(data, open(name, 'wb'))
+
+def load_pkl(name):
+	return pickle.load(open(name, 'rb'))
+
 if __name__=='__main__':
 	df = ThreadedDataFrame('./abc/', 'w')
 	df.write(b'adbcbc')
