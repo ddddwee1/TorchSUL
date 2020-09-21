@@ -99,6 +99,7 @@ class conv2D(Model):
 
 	def _parse_args(self, input_shape):
 		inchannel = input_shape[1]
+		self.inchannel = inchannel
 		# parse args
 		if isinstance(self.size,list):
 			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
@@ -134,6 +135,13 @@ class conv2D(Model):
 
 	def forward(self, x):
 		return F.conv2d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
+
+	def to_torch(self):
+		conv = nn.Conv2d(self.inchannel, self.outchn, self.size[2:], self.stride, self.pad, 'zeros', self.dilation_rate, self.gropus, self.usebias)
+		conv.weight.data[:] = self.weight.data[:]
+		if self.usebias:
+			conv.bias.data[:] = self.bias.data[:]
+		return conv 
 
 class deconv2D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True, gropus=1):
@@ -365,6 +373,13 @@ class fclayer(Model):
 			weight = self.weight
 		return F.linear(x, weight, self.bias)
 
+	def to_torch(self):
+		fc = nn.Linear(self.insize, self.outsize, self.usebias)
+		fc.weight.data[:] = self.weight.data[:]
+		if self.usebias:
+			fc.bias.data[:] = self.bias.data[:]
+		return fc 
+
 def flatten(x):
 	x = x.view(x.size(0), -1)
 	return x 
@@ -448,6 +463,7 @@ class BatchNorm(Model):
 	def build(self, *inputs):
 		# print('building...')
 		num_features = inputs[0].shape[1]
+		self.num_features = num_features
 		if self.affine:
 			self.weight = Parameter(torch.Tensor(num_features))
 			self.bias = Parameter(torch.Tensor(num_features))
@@ -506,6 +522,16 @@ class BatchNorm(Model):
 				record_params.append(res)
 			self.un_record()
 		return result
+
+	def to_torch(self):
+		bn = nn.BatchNorm2d(self.num_features, self.eps, self.momentum, self.affine, self.track_running_stats)
+		if self.affine:
+			bn.weight.data[:] = self.weight.data[:]
+			bn.bias.data[:] = self.bias.data[:]
+		if track_running_stats:
+			bn.running_mean.data[:] = self.running_mean.data[:]
+			bn.running_var.data[:] = self.running_var.data[:]
+		return bn 
 
 	# def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
 	# 						  missing_keys, unexpected_keys, error_msgs):

@@ -54,6 +54,21 @@ def init_model(model, *args, **kwargs):
 	with torch.no_grad():
 		return model(*args, **kwargs)
 
+def to_standard_torch(model, inplace=True):
+	if not inplace:
+		model = copy.deepcopy(model)
+	convertible_layers = [ConvLayer, Dense]
+	replacable_layers = [BatchNorm,]
+	for n,c in model.named_children():
+		if isinstance(c, convertible_layers):
+			c.to_torch()
+		elif isinstance(c, replacable_layers):
+			rep = c.to_torch()
+			setattr(model, n.split('.')[-1], rep)
+		else:
+			to_standard_torch(c)
+	return model 
+
 class Saver():
 	def __init__(self, module):
 		self.model = module
@@ -172,6 +187,12 @@ class ConvLayer(Model):
 					res[p[0]] = p[1]
 			L.record_params.append(res)
 		return x 
+	def to_torch(self):
+		conv = self.conv.to_torch()
+		setattr(self, 'conv', conv)
+		if self.batch_norm:
+			bn = self.bn.to_torch()
+			setattr(self, 'bn', bn)
 
 class DeConvLayer(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
