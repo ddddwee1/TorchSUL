@@ -100,6 +100,7 @@ class conv2D(Model):
 	def _parse_args(self, input_shape):
 		inchannel = input_shape[1]
 		self.inchannel = inchannel
+		# print('INC', inchannel)
 		# parse args
 		if isinstance(self.size,list):
 			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
@@ -118,6 +119,7 @@ class conv2D(Model):
 	def build(self, *inputs):
 		# print('building...')
 		inp = inputs[0]
+		# self.inchannel = inp
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size))
 		if self.usebias:
@@ -137,7 +139,9 @@ class conv2D(Model):
 		return F.conv2d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
 
 	def to_torch(self):
-		conv = nn.Conv2d(self.inchannel, self.outchn, self.size[2:], self.stride, self.pad, 'zeros', self.dilation_rate, self.gropus, self.usebias)
+		# print('inchannel',self.inchannel)
+		conv = nn.Conv2d(in_channels = self.inchannel, out_channels = self.outchn, kernel_size = tuple(self.size[2:]), stride = self.stride,\
+						padding = self.pad, padding_mode = 'zeros', dilation = self.dilation_rate, groups = self.gropus, bias = self.usebias)
 		conv.weight.data[:] = self.weight.data[:]
 		if self.usebias:
 			conv.bias.data[:] = self.bias.data[:]
@@ -210,6 +214,8 @@ class dwconv2D(Model):
 	def _parse_args(self, input_shape):
 		inchannel = input_shape[1]
 		self.gropus = inchannel
+		self.inchannel = inchannel
+		self.outchn = self.multiplier * inchannel
 		# parse args
 		if isinstance(self.size,list):
 			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
@@ -245,6 +251,14 @@ class dwconv2D(Model):
 
 	def forward(self, x):
 		return F.conv2d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
+
+	def to_torch(self):
+		conv = nn.Conv2d(in_channels = self.inchannel, out_channels = self.outchn, kernel_size = tuple(self.size[2:]), stride = self.stride,\
+						padding = self.pad, padding_mode = 'zeros', dilation = self.dilation_rate, groups = self.gropus, bias = self.usebias)
+		conv.weight.data[:] = self.weight.data[:]
+		if self.usebias:
+			conv.bias.data[:] = self.bias.data[:]
+		return conv 
 
 class conv1D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True, gropus=1):
@@ -354,13 +368,14 @@ class fclayer(Model):
 
 	def reset_params(self):
 		# init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-		# init.normal_(self.weight, std=0.01)
-		_resnet_normal(self.weight)
-		print('Reset fc params...')
-		if self.bias is not None:
-			fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
-			bound = 1 / math.sqrt(fan_in)
-			init.uniform_(self.bias, -bound, bound)
+		init.normal_(self.weight, std=0.001)
+		# _resnet_normal(self.weight)
+		# print('Reset fc params...')
+		# if self.bias is not None:
+		# 	fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+		# 	bound = 1 / math.sqrt(fan_in)
+		# 	init.uniform_(self.bias, -bound, bound)
+		init.zeros_(self.bias)
 
 	def forward(self, x):
 		if self.norm:
@@ -381,7 +396,7 @@ class fclayer(Model):
 		return fc 
 
 def flatten(x):
-	x = x.view(x.size(0), -1)
+	x = x.reshape(x.size(0), -1)
 	return x 
 
 class Flatten(Model):
@@ -528,7 +543,7 @@ class BatchNorm(Model):
 		if self.affine:
 			bn.weight.data[:] = self.weight.data[:]
 			bn.bias.data[:] = self.bias.data[:]
-		if track_running_stats:
+		if self.track_running_stats:
 			bn.running_mean.data[:] = self.running_mean.data[:]
 			bn.running_var.data[:] = self.running_var.data[:]
 		return bn 

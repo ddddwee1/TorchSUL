@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn 
 import torch.nn.functional as F 
 import os 
+import copy 
 
 Model = L.Model
 activation = L.activation
@@ -57,8 +58,8 @@ def init_model(model, *args, **kwargs):
 def to_standard_torch(model, inplace=True):
 	if not inplace:
 		model = copy.deepcopy(model)
-	convertible_layers = [ConvLayer, Dense]
-	replacable_layers = [BatchNorm,]
+	convertible_layers = (ConvLayer, Dense, DWConvLayer)
+	replacable_layers = (BatchNorm,)
 	for n,c in model.named_children():
 		if isinstance(c, convertible_layers):
 			c.to_torch()
@@ -130,6 +131,8 @@ class ConvLayer(Model):
 			self.act = torch.nn.PReLU(num_parameters=outchn)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
+		else:
+			self.act = L.Activation(activation)
 	def forward(self, x):
 		if self._record:
 			record_flag = True
@@ -140,10 +143,8 @@ class ConvLayer(Model):
 		x = self.conv(x)
 		if self.batch_norm:
 			x = self.bn(x)
-		if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
+		if self.activation!=-1:
 			x = self.act(x)
-		else:
-			x = L.activation(x, self.activation)
 
 		if record_flag:
 			# print(self._merge_bn)
@@ -193,6 +194,9 @@ class ConvLayer(Model):
 		if self.batch_norm:
 			bn = self.bn.to_torch()
 			setattr(self, 'bn', bn)
+		if self.activation==PARAM_RELU:
+			relu = nn.ReLU()
+			setattr(self, 'act', relu)
 
 class DeConvLayer(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
@@ -263,6 +267,7 @@ class DeConvLayer(Model):
 			L.record_params.append(res)
 		return x 
 
+
 class DWConvLayer(Model):
 	def initialize(self, size, multiplier, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True):
 		self.conv = L.dwconv2D(size, multiplier, stride, pad, dilation_rate, usebias)
@@ -278,6 +283,8 @@ class DWConvLayer(Model):
 			self.act = torch.nn.PReLU(num_parameters=inchannel*self.multiplier)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
+		else:
+			self.act = L.Activation(self.activation)
 	def forward(self, x):
 		if self._record:
 			record_flag = True
@@ -287,10 +294,9 @@ class DWConvLayer(Model):
 		x = self.conv(x)
 		if self.batch_norm:
 			x = self.bn(x)
-		if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
+		if self.activation!=-1:
 			x = self.act(x)
-		else:
-			x = L.activation(x, self.activation)
+
 
 		if record_flag:
 			# print(self._merge_bn)
@@ -334,6 +340,15 @@ class DWConvLayer(Model):
 					res[p[0]] = p[1]
 			L.record_params.append(res)
 		return x 
+	def to_torch(self):
+		conv = self.conv.to_torch()
+		setattr(self, 'conv', conv)
+		if self.batch_norm:
+			bn = self.bn.to_torch()
+			setattr(self, 'bn', bn)
+		if self.activation==PARAM_RELU:
+			relu = nn.ReLU()
+			setattr(self, 'act', relu)
 
 class ConvLayer1D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
@@ -442,6 +457,15 @@ class Dense(Model):
 			L.record_params.append(res)
 
 		return x 
+	def to_torch(self):
+		fc = self.fc.to_torch()
+		setattr(self, 'fc', fc)
+		if self.batch_norm:
+			bn = self.bn.to_torch()
+			setattr(self, 'bn', bn)
+		if self.activation==PARAM_RELU:
+			relu = nn.ReLU()
+			setattr(self, 'act', relu)
 
 class LSTMCell(Model):
 	def initialize(self, outdim):
