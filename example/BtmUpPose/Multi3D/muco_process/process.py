@@ -45,6 +45,9 @@ print(names[0])
 
 pickle.dump({'names':names, 'p2d':pts2ds, 'p3d':pts3ds}, open('augmented.pkl', 'wb'))
 
+names = []
+pts3ds = []
+pts2ds = []
 folders = glob.glob('./unaugmented_set/unaugmented_set/*')
 for f in tqdm(folders):
 	parse_folder(f)

@@ -54,6 +54,8 @@ blur_type = ['vertical','horizontal','mean']
 data_root = '/data/pose3d/muco/'
 coco_data_root = '/data/pose3d/coco_kpts/train2017/'
 coco_mask_root = '/data/pose3d/coco_kpts/masks/'
+filted_coco_pkl = 'filtered_coco_kpts.pkl'
+augmented_pkl = 'augmented.pkl'
 
 max_epoch = 35
 init_lr = 0.001

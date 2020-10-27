@@ -121,7 +121,7 @@ class RandomAffineTransform(object):
 
 class COCO_kpts(Dataset):
 	def __init__(self):
-		data = pickle.load(open('augmented.pkl' , 'rb'))
+		data = pickle.load(open(config.augmented_pkl , 'rb'))
 		self.names = data['names']
 		self.pts_data = data['p2d']
 		self.pts3d_data = data['p3d']
@@ -129,7 +129,7 @@ class COCO_kpts(Dataset):
 		self.aff = RandomAffineTransform(config.inp_size, config.out_size, config.rotation, config.min_scale, config.max_scale, 'short', config.max_translate, False)
 
 		# coco 
-		self.coco_pts_data = pickle.load(open('filtered_coco_kpts.pkl' , 'rb'))
+		self.coco_pts_data = pickle.load(open(config.filted_coco_pkl , 'rb'))
 		self.coco_img_indices = list(self.coco_pts_data.keys())
 		print('Index pool COCO: ', len(self.coco_img_indices))
 		self.coco_aff = RandomAffineTransform(config.inp_size, config.out_size, config.coco_rotation, config.coco_min_scale, config.coco_max_scale, 'short', config.coco_max_translate, False)
