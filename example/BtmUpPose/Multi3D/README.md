@@ -6,7 +6,7 @@
 
 1. Process coco dataset with coco_process/dump.py and filt_coco.py. You will get a filtered_coco_kpts.pkl which contains the information, and a folder masks which contains the mask information for each image. 
 
-2. Process muco dataset with muco_process/process.py. You will get augmented.pkl that contains labels of augmented dataset and unugmented dataset accordingly. 
+2. Process muco dataset with muco_process/process.py. You will get augmented.pkl and unaumgmented.pkl that contains labels of augmented dataset and unugmented dataset accordingly. 
 
 3. Change paths in train/config.py 
 
