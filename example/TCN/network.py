@@ -6,55 +6,77 @@ import torch.nn.functional as F
 import numpy as np 
 
 class ResBlock1D(M.Model):
-	def initialize(self, outchn=512, dilation=1, k=3):
-		self.bn = M.BatchNorm()
-		self.c1 = M.ConvLayer1D(k, outchn, dilation_rate=dilation, activation=M.PARAM_PRELU, batch_norm=True, usebias=False, pad='VALID')
-		self.c2 = M.ConvLayer1D(3, outchn, pad='VALID')
+	def initialize(self, outchn=1024, k=3):
+		self.k = k 
+		# self.bn = M.BatchNorm()
+		self.c1 = M.ConvLayer1D(k, outchn, stride=k, activation=M.PARAM_PRELU, batch_norm=True, usebias=False, pad='VALID')
+		self.c2 = M.ConvLayer1D(1, outchn, activation=M.PARAM_PRELU, batch_norm=True, usebias=False, pad='VALID')
 
 	def forward(self, x):
 		short = x
 
 		# residual branch
-		branch = self.bn(x)
-		branch = M.activation(branch, M.PARAM_LRELU)
-		branch = self.c1(branch)
-		branch = self.c2(branch)
+		# branch = self.bn(x)
+		# branch = M.activation(branch, M.PARAM_LRELU)
 
+		branch = self.c1(x)
+		branch = F.dropout(branch, 0.5, self.training, False)
+		branch = self.c2(branch)
+		branch = F.dropout(branch, 0.5, self.training, False)
 		# slicing & shortcut
-		branch_shape = branch.shape[-1]
-		short_shape = short.shape[-1]
-		start = (short_shape - branch_shape) // 2
-		short = short[:, :, start:start+branch_shape]
+		# branch_shape = branch.shape[-1]
+		# short_shape = short.shape[-1]
+		# start = (short_shape - branch_shape) // 2
+		short = short[:, :, self.k//2::self.k]
 		res = short + branch
-		res = F.dropout(res, 0.4, self.training, False)
+		# res = F.dropout(res, 0.25, self.training, False)
+
 		return res
 
 class Refine2dNet(M.Model):
-	def initialize(self, outchn):
-		self.c1 = M.ConvLayer1D(5, 512, activation=M.PARAM_PRELU, batch_norm=True, usebias=False, pad='VALID')
-		self.r1 = ResBlock1D(k=3, dilation=2)
-		self.r2 = ResBlock1D(k=3, dilation=4)
-		self.r3 = ResBlock1D(k=5, dilation=8)
-		self.r4 = ResBlock1D(k=5, dilation=16)
-		self.c5 = M.ConvLayer1D(9, 512, activation=M.PARAM_PRELU, batch_norm=True, usebias=False, pad='VALID')
-		self.c4 = M.ConvLayer1D(1, outchn)
+	def initialize(self, num_kpts, temp_length):
+		self.num_kpts = num_kpts
+		self.temp_length = temp_length
+		self.c1 = M.ConvLayer1D(3, 1024, stride=3, activation=M.PARAM_PRELU, pad='VALID', batch_norm=True, usebias=False)
+		self.r1 = ResBlock1D(k=3)
+		self.r2 = ResBlock1D(k=3)
+		self.r3 = ResBlock1D(k=3)
+		self.r4 = ResBlock1D(k=3)
+		# self.r3 = ResBlock1D(k=3, dilation=3)
+		# self.c5 = M.ConvLayer1D(9, 256, activation=M.PARAM_PRELU, pad='VALID', batch_norm=True, usebias=False)
+		self.c4 = M.ConvLayer1D(1, num_kpts*3)
 
 	def forward(self, x, drop=True):
+		x = x.view(x.shape[0], x.shape[1], self.num_kpts * 2)
+		x = x.permute(0,2,1)
 		x = self.c1(x)
-		# print(x.shape)
 		x = self.r1(x)
-		# print(x.shape)
 		x = self.r2(x)
-		# print(x.shape)
 		x = self.r3(x)
-		# print(x.shape)
 		x = self.r4(x)
-		# print(x.shape)
 		# x = self.r5(x)
-		# print(x.shape)
-		x = self.c5(x)
-		# print(x.shape)
+		# x = self.c5(x)
 		x = self.c4(x)
-		# print(x.shape)
+		x = x.permute(0, 2, 1)
+		x = x.reshape(x.shape[0], x.shape[1], self.num_kpts, 3)
 		return x 
+
+	def evaluate(self, x):
+		aa = []
+		for i in range(x.shape[1]-self.temp_length+1):
+			aa.append(x[:, i:i+self.temp_length])
+		aa = torch.cat(aa, dim=0)
+		y = self(aa)
+		y = y.permute(1,0,2,3)
+		return y
+
+class Discriminator2D(M.Model):
+	def initialize(self):
+		self.c1 = M.ConvLayer1D(1, 1024, activation=M.PARAM_PRELU)
+		self.c2 = M.ConvLayer1D(1, 256, activation=M.PARAM_PRELU)
+		self.c3 = M.ConvLayer1D(1, 256, activation=M.PARAM_PRELU)
+		self.c4 = M.ConvLayer1D(1, 1)
+
+	def forward(self, x):
+		return self.c4(self.c3(self.c2(self.c1(x))))
 

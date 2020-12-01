@@ -1,6 +1,7 @@
 import pickle 
 import numpy as np 
 import pickle 
+from tqdm import tqdm 
 
 # Joints in H3.6M -- data has 32 joints,
 # but only 17 that move; these are the indices.
@@ -72,9 +73,7 @@ def project_point_radial(P, R, T, f, c, k, p):
 
     D = X[2,]
 
-    return Proj, D
-
-
+    return Proj, X.T
 
 if __name__=='__main__':
 
@@ -87,29 +86,28 @@ if __name__=='__main__':
 
 	print(subjects)
 
-	# for sub in subjects:
-	# 	actions = list(p3d[sub].keys())
-	# 	for act in actions:
-	# 		# if sub=='S11' and act=='Directions':
-	# 		# 	# corrupted video
-	# 		# 	continue
-	# 		# if sub=='S9':
-	# 		# 	continue
-	# 		# # elif sub=='S9':
-	# 		# # 	continue
-	# 		# else:
-	# 		# 	for cam in cams[sub].keys():
-	# 		# 		buf = {'sub':sub, 'act':act, 'cam':cam}
-	# 		# 		clip_list.append(buf)
-	buf = {'sub':'S7', 'act':'Sitting', 'cam':'55011271'}
+	for sub in subjects:
+		actions = list(p3d[sub].keys())
+		for act in actions:
+			if sub=='S11' and act=='Directions':
+				# corrupted video
+				continue
+			# if sub=='S9':
+			# 	continue
+			else:
+				for cam in cams[sub].keys():
+					buf = {'sub':sub, 'act':act, 'cam':cam}
+					clip_list.append(buf)
+			# if sub in ['S9','S11']:
+			# 	for cam in cams[sub].keys():
+			# 		buf = {'sub':sub, 'act':act, 'cam':cam}
+			# 		clip_list.append(buf)
+
 	clip_list.append(buf)
 
 	data = {}
 	data_list = []
 	print(len(clip_list))
-
-	maxz = 0
-	minz = 99999
 
 	cnt = 0
 	for i in clip_list:
@@ -124,14 +122,12 @@ if __name__=='__main__':
 		pts = get_17pts(pts)
 		pts = pts.reshape([-1, 3])
 
-		pts2d = project_point_radial(pts, **cam)[0]
+		pts2d, pts3d = project_point_radial(pts, **cam)
 		pts2d = pts2d.reshape([-1, 17, 2])
-		# print(pts2d.shape)
-		# input()
+		pts3d = pts3d.reshape([-1, 17, 3])
+		print(pts2d.shape, pts3d.shape)
 
-		data_list.append(pts2d)
-		# print(pts2d[0])
+		data_list.append([pts2d, pts3d])
 
-
-with open('points_flatten2.pkl','wb') as f:
+with open('points_flatten2d.pkl','wb') as f:
 	pickle.dump(data_list, f)
