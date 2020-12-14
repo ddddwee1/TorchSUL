@@ -83,7 +83,14 @@ class Saver():
 		else:
 			return False
 
-	def restore(self, path, strict=True):
+	def _exclude(self, d, exclude):
+		if exclude is not None:
+			for e in exclude:
+				if e in d:
+					d.pop(e)
+		return d 
+
+	def restore(self, path, strict=True, exclude=None):
 		print('Trying to load from:',path)
 		# print(path[-4:])
 		device = torch.device('cpu')
@@ -91,18 +98,26 @@ class Saver():
 			if not os.path.exists(path):
 				print('Path:',path, 'does not exsist.')
 			elif isinstance(self.model, nn.DataParallel):
-				self.model.module.load_state_dict(torch.load(path, map_location=device), strict=strict)
+				state_dict = torch.load(path, map_location=device)
+				state_dict = self._exclude(state_dict, exclude)
+				self.model.module.load_state_dict(state_dict, strict=strict)
 				print('Model loaded from:', path)
 			else:
-				self.model.load_state_dict(torch.load(path, map_location=device), strict=strict)
+				state_dict = torch.load(path, map_location=device)
+				state_dict = self._exclude(state_dict, exclude)
+				self.model.load_state_dict(state_dict, strict=strict)
 				print('Model loaded from:', path)
 		else:
 			path = self._get_checkpoint(path)
 			if path:
 				if isinstance(self.model, nn.DataParallel):
-					self.model.module.load_state_dict(torch.load(path, map_location=device), strict=strict)
+					state_dict = torch.load(path, map_location=device)
+					state_dict = self._exclude(state_dict, exclude)
+					self.model.module.load_state_dict(state_dict, strict=strict)
 				else:
-					self.model.load_state_dict(torch.load(path, map_location=device), strict=strict)
+					state_dict = torch.load(path, map_location=device)
+					state_dict = self._exclude(state_dict, exclude)
+					self.model.load_state_dict(state_dict, strict=strict)
 				print('Model loaded from:', path)
 			else:
 				print('No checkpoint found. No restoration will be performed.')
