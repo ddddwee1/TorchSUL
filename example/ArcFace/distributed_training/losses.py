@@ -69,10 +69,9 @@ class NLLDistributed(torch.autograd.Function):
 		idx = torch.where(label>=0)[0]
 		grad = results.clone().detach()
 		if idx.shape[0]!=0:
-			# print(len(idx))
 			label = label[idx]
 			grad[idx,label] -= 1. 
-			grad = grad / xexp.shape[0]
+			# grad = grad / xexp.shape[0]
 			results = results[idx, label]
 		else:
 			results = (results[0,0] + 1) / (results[0,0] + 1) # avoid nan
@@ -83,7 +82,13 @@ class NLLDistributed(torch.autograd.Function):
 	@staticmethod
 	def backward(ctx, grad_out):
 		grad = ctx.saved_tensors
-		return grad[0], None, None, None
+		if len(grad_out.shape)==0:
+			coef = grad_out
+		else:
+			coef = grad_out[0]
+		# print(grad_out[0])
+		# print(grad_out.shape, grad[0].shape)
+		return grad[0] * coef, None, None, None
 
 nllDistributed = NLLDistributed.apply
 
