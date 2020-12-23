@@ -75,6 +75,7 @@ class NLLDistributed(torch.autograd.Function):
 			results = results[idx, label]
 		else:
 			results = (results[0,0] + 1) / (results[0,0] + 1) # avoid nan
+		grad = grad / xexp.shape[0]
 		ctx.save_for_backward(grad)
 		results = - torch.log(results)
 		return results
@@ -82,12 +83,11 @@ class NLLDistributed(torch.autograd.Function):
 	@staticmethod
 	def backward(ctx, grad_out):
 		grad = ctx.saved_tensors
+		# print(grad_out.shape)
 		if len(grad_out.shape)==0:
 			coef = grad_out
 		else:
-			coef = grad_out[0]
-		# print(grad_out[0])
-		# print(grad_out.shape, grad[0].shape)
+			coef = grad_out[0] * grad_out.shape[0]
 		return grad[0] * coef, None, None, None
 
 nllDistributed = NLLDistributed.apply
@@ -98,13 +98,14 @@ class SplitClassifier(M.Model):
 		self.start = split_size * rank
 		self.outsize = min(num_classes-self.start, split_size)
 		self.end = min(num_classes, self.start + split_size)
+		self.split_size = split_size
 		self.world_size = world_size
 		self.rank = rank 
 		self.logger = logger
 		self.logger.info('Create classifier for class %d~%d'%(self.start , self.end))
 
 	def parse_args(self, input_shape):
-		self.weight_shape = [self.outsize, input_shape[1]]
+		self.weight_shape = [self.split_size, input_shape[1]]
 
 	def build(self, *inputs):
 		self.parse_args(inputs[0].shape)
@@ -114,12 +115,14 @@ class SplitClassifier(M.Model):
 	def forward(self, feats, label, **kwargs):
 		label = label - self.start
 		label[label>=self.outsize] = -1
-		x, xexp, xsum, xargmax, xmax = classify(feats, self.weight, label, **kwargs)
+		w = self.weight[:self.outsize]
+		x, xexp, xsum, xargmax, xmax = classify(feats, w, label, **kwargs)
 		# print('adf',xsum.device, xsum.shape)
 		dist.all_reduce(xsum) # [bsize, 1]
 		# self.logger.info('xsum %s'%(xsum.shape))
 		# print('XSUM', xsum.shape)
 		loss = nllDistributed(x, xexp, label, xsum)
+		# print(loss.shape)
 		# dist.all_reduce(loss)
 		bsize = label.shape[0]
 		start_bidx = bsize * self.rank
@@ -157,29 +160,42 @@ class TotalClassifier(M.Model):
 	def build_forward(self, feats, label, **kwargs):
 		return None 
 
-def save_classifier(num_classes, world_size, classifier, path, logger):
+def save_classifier(num_classes, world_size, classifier, path, logger, do_save):
 	tensor = classifier.weight
 	split_size = num_classes // world_size + int(num_classes%world_size>0)
-	outsizes = [min(split_size, num_classes - split_size*rank) for rank in range(world_size)]
-	results_list = [torch.zeros(outsizes[i],tensor.shape[1]) for i in range(world_size)]
-	dist.gather(tensor, gather_list=results_list, dst=0)
+	# outsizes = [min(split_size, num_classes - split_size*rank) for rank in range(world_size)]
+	results_list = [torch.zeros(split_size,tensor.shape[1]).to(tensor.device) for i in range(world_size)]
+	dist.all_gather(results_list, tensor)
 	result = torch.cat(results_list, dim=0)
-	result = result.detach().cpu()
-	directory = os.path.dirname(path)
-	if not os.path.exists(directory):
-		os.makedirs(directory)
-	torch.save(result, path)
-	logger.info('Classifier saved to: %s'%path)
+	if do_save:
+		result = result.detach().cpu()
+		directory = os.path.dirname(path)
+		if not os.path.exists(directory):
+			os.makedirs(directory)
+		torch.save(result, path)
+		ckpt = open(directory + '/checkpoint', 'w')
+		ckpt.write(os.path.basename(path))
+		ckpt.close()
+		logger.info('Classifier saved to: %s'%path)
 
 def load_classifier(num_classes, world_size, classifier, rank, path, logger):
-	if os.path.exists(path):
+	def load_(pthpath):
 		tensor = classifier.weight
 		split_size = num_classes // world_size + int(num_classes%world_size>0)
 		start_idx = split_size * rank
 		end_idx = min(num_classes, start_idx + split_size)
-		mtx = torch.load(path)
-		classifier.weight.data[:] = mtx[start_idx:end_idx]
-		logger.info('Classifier loaded from: %s'%path)
+		# end_idx = start_idx + split_size
+		mtx = torch.load(pthpath)
+		classifier.weight.data[:end_idx-start_idx] = mtx[start_idx:end_idx]
+		logger.info('Classifier loaded from: %s'%pthpath)
+	path = path.replace('\\','/')
+	ckpt = os.path.join(path , 'checkpoint')
+	if os.path.exists(ckpt):
+		fname = open(ckpt).readline().strip()
+		path = path + fname
+		load_(path)
+	elif os.path.exists(path):
+		load_(path)
 	else:
 		logger.warning('No savings at %s'%path)
 	
