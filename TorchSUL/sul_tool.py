@@ -2,6 +2,7 @@ import cv2
 import numpy as np 
 import os 
 import time 
+import progressbar
 
 def extract_frames(fname,prefix,skip=1):
 	print('Extracting %s'%fname)
