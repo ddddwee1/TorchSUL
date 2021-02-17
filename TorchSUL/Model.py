@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F 
 import os 
 import copy 
+from distutils.version import LooseVersion
 
 Model = L.Model
 activation = L.activation
@@ -127,9 +128,15 @@ class Saver():
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 		if isinstance(self.model, nn.DataParallel):
-			torch.save(self.model.module.state_dict(), path)
+			if LooseVersion(torch.__version__)>=LooseVersion('1.6.0'):
+				torch.save(self.model.module.state_dict(), path, _use_new_zipfile_serialization=False)
+			else:
+				torch.save(self.model.module.state_dict(), path)
 		else:
-			torch.save(self.model.state_dict(), path)
+			if LooseVersion(torch.__version__)>=LooseVersion('1.6.0'):
+				torch.save(self.model.state_dict(), path, _use_new_zipfile_serialization=False)
+			else:
+				torch.save(self.model.state_dict(), path)
 		print('Model saved to:',path)
 		ckpt = open(directory + '/checkpoint', 'w')
 		ckpt.write(os.path.basename(path))

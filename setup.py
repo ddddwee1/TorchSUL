@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup_args = dict(
     name='TorchSUL',
-    version='0.1.22',
+    version='0.1.24',
     description='Simple but useful layers for Pytorch',
     packages=find_packages(),
     long_description=long_description,
@@ -13,6 +13,11 @@ setup_args = dict(
     author='Cheng Yu',
     author_email='chengyu996@gmail.com',
     url='https://github.com/ddddwee1/TorchSUL',
+    install_requires = [
+        'tqdm',
+        'progressbar2',
+        'opencv-python',
+    ]
 )
 
 install_requires = []
