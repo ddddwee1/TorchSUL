@@ -14,7 +14,7 @@ This package is created for better experience while using Pytorch.
 
 ## Installation
 
-You need to install the newest version of pytorch.
+You need to install the latest version of pytorch.
 
 Good, then just 
 
