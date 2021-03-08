@@ -17,6 +17,7 @@ setup_args = dict(
         'tqdm',
         'progressbar2',
         'opencv-python',
+        'matplotlib',
     ]
 )
 
