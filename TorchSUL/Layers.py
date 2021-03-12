@@ -371,11 +371,11 @@ class fclayer(Model):
 		init.normal_(self.weight, std=0.001)
 		# _resnet_normal(self.weight)
 		# print('Reset fc params...')
-		# if self.bias is not None:
+		if self.bias is not None:
 		# 	fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
 		# 	bound = 1 / math.sqrt(fan_in)
 		# 	init.uniform_(self.bias, -bound, bound)
-		init.zeros_(self.bias)
+			init.zeros_(self.bias)
 
 	def forward(self, x):
 		if self.norm:
