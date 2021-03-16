@@ -15,6 +15,7 @@ Flatten = L.Flatten
 GlobalAvgPool = L.GlobalAvgPool2D
 GlobalAvgPoolLayer = L.GlobalAvgPool2DLayer
 BatchNorm = L.BatchNorm
+LayerNorm = L.LayerNorm
 MaxPool2D = L.MaxPool2d
 AvgPool2D = L.AvgPool2d
 NNUpSample = L.NNUpSample

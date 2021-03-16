@@ -563,6 +563,34 @@ class BatchNorm(Model):
 	# 		state_dict, prefix, local_metadata, strict,
 	# 		missing_keys, unexpected_keys, error_msgs)
 
+class LayerNorm(Model):
+	def initialize(self, n_dims_to_keep, affine=True, eps=1e-5):
+		self.n_dims_to_keep = n_dims_to_keep
+		self.affine = affine
+		self.eps = eps 
+
+	def build(self, *inputs):
+		shape = inputs[0].shape
+		self.n_dims = len(shape)
+		self.dim_to_reduce = list(range(n_dims_to_keep, self.n_dims))
+		if self.affine:
+			self.weight = Parameter(torch.Tensor(shape[self.n_dims_to_keep:]))
+			self.bias = Parameter(torch.Tensor(shape[self.n_dims_to_keep:]))
+		self.reset_params()
+
+	def reset_params(self):
+		if self.affine:
+			init.ones_(self.weight)
+			init.zeros_(self.bias)
+
+	def forward(self, x):
+		mean = torch.mean(x, dims=self.dim_to_reduce, keepdim=True)
+		std = torch.std(x, dims=self.dim_to_reduce, keepdim=True)
+		if self.affine:
+			return self.weight * (x - mean) / (std + self.eps) + self.bias
+		else:
+			return (x - mean) / (std + self.eps)
+
 def GlobalAvgPool2D(x):
 	x = x.mean(dim=(2,3), keepdim=True)
 	return x 
