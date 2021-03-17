@@ -1,4 +1,5 @@
-import Model as M 
+import TorchSUL.Model as M 
+import numpy as np 
 import torch 
 import torch.nn as nn 
 from torch.nn.parameter import Parameter
@@ -6,20 +7,21 @@ import torch.nn.init as init
 import torch.nn.functional as F 
 
 class MultiHeadAtt(M.Model):
-	def initialize(self, num_heads, dim):
+	def initialize(self, num_heads, dim, drop):
 		self.dim = dim 
 		self.num_heads = num_heads
+		self.drop = drop 
 
 	def build(self, *inputs):
-		indimq = inputs[0].shape[1] # q: [N, dim, seq_len]
-		indimk = inputs[0].shape[1] # k: [N, dim, seq_len]
-		indimv = inputs[0].shape[1] # v: [N, dim, seq_len]
+		indimq = inputs[0].shape[2] # q: [N, seq_len, dim]
+		indimk = inputs[0].shape[2] # k: [N, seq_len, dim]
+		indimv = inputs[0].shape[2] # v: [N, seq_len, dim]
 		self.wq = Parameter(torch.Tensor(self.num_heads, self.dim, indimq))
 		self.wk = Parameter(torch.Tensor(self.num_heads, self.dim, indimk))
 		self.wv = Parameter(torch.Tensor(self.num_heads, self.dim, indimv))
-		self.bq = Parameter(torch.Tensor(self.num_heads, 1, self.dim))
-		self.bk = Parameter(torch.Tensor(self.num_heads, 1, self.dim))
-		self.bv = Parameter(torch.Tensor(self.num_heads, 1, self.dim))
+		self.bq = Parameter(torch.Tensor(self.num_heads, self.dim))
+		self.bk = Parameter(torch.Tensor(self.num_heads, self.dim))
+		self.bv = Parameter(torch.Tensor(self.num_heads, self.dim))
 
 		init.normal_(self.wq, std=0.001)
 		init.normal_(self.wk, std=0.001)
@@ -36,16 +38,19 @@ class MultiHeadAtt(M.Model):
 		v = torch.einsum('ijk,lmk->ijlm', v, self.wv) + self.bv   # v: [N, seq_len, num_heads, dim]
 		
 		qk = torch.einsum('ijkl,imkl->ijkm', q, k)
-		qk = torch.softmax(qk / torch.sqrt(self.dim), dim=-1)  # qk: [N, seq_len_q, num_heads, seq_len_k]
-		res = torch.eimsum('ijkl,ilkm->ijkm', qk, v)
+		qk = torch.softmax(qk / np.sqrt(self.dim), dim=-1)  # qk: [N, seq_len_q, num_heads, seq_len_k]
+		if self.drop>0:
+			qk = F.dropout(qk, self.drop, self.training, False)
+
+		res = torch.einsum('ijkl,ilkm->ijkm', qk, v)
 		res = res.reshape(-1, seq_len, self.dim * self.num_heads)
 		return res 
 
 class Transformer(M.Model):
-	def initialize(self, num_heads, dim, drop=drop):
-		self.att = MultiHeadAtt(num_heads, dim)
-		self.l1 = M.Dense(dim * 4)
-		self.l2 = M.Dense(dim)
+	def initialize(self, num_heads, dim_per_head, drop):
+		self.att = MultiHeadAtt(num_heads, dim_per_head, drop)
+		self.l1 = M.Dense(dim_per_head * num_heads * 4)
+		self.l2 = M.Dense(dim_per_head * num_heads)
 		self.ln1 = M.LayerNorm(1)
 		self.ln2 = M.LayerNorm(1)
 		self.drop = drop
@@ -53,6 +58,7 @@ class Transformer(M.Model):
 	def forward(self, x):
 		sc = x 
 		x = self.ln1(x)
+		# print(x.shape)
 		x = self.att(x, x, x)
 		x = F.dropout(x, self.drop, self.training, False)
 		x = x + sc 
@@ -76,12 +82,12 @@ class PositionalEmbedding(M.Model):
 		return x 
 
 class TransformerNet(M.Model):
-	def initialize(self, num_enc, num_heads, dim, latent_token=True, drop=0.2):
+	def initialize(self, num_enc, num_heads, dim_per_head, latent_token=True, drop=0.2):
 		self.latent_token = latent_token
 		self.posemb = PositionalEmbedding()
 		self.trans_blocks = nn.ModuleList()
 		for i in range(num_enc):
-			self.trans_blocks.append(Transformer(num_heads, dim, drop=drop))
+			self.trans_blocks.append(Transformer(num_heads, dim_per_head, drop=drop))
 
 	def build(self, *inputs):
 		indim = inputs[0].shape[2]
@@ -149,7 +155,7 @@ class ResNet(M.Model):
 		# self.u1 = ResBlock_v1(channel_list[1], stride=2)
 		self.stage1 = Stage(channel_list[1], blocknum_list[0], stride=2)
 		self.stage2 = Stage(channel_list[2], blocknum_list[1], stride=2)
-		self.stage3 = Stage(channel_list[3], blocknum_list[2], stride=1)
+		self.stage3 = Stage(channel_list[3], blocknum_list[2], stride=2)
 		self.stage4 = Stage(channel_list[4], blocknum_list[3], stride=1)
 		self.bn1 = M.BatchNorm()
 		print('Embedding_size:', embedding_size)
@@ -170,10 +176,10 @@ class ResNet(M.Model):
 def Res10(dim=512):
 	return ResNet([64,64,128,256,512], [2,2,2,2], dim)
 
-class FaceNet(M.Model):
-	def initialize(self, network, emb_dim=512):
+class FaceTransNet(M.Model):
+	def initialize(self, emb_dim=512):
 		self.backbone = Res10()
-		self.trans = TransformerNet(num_enc=4, num_heads=8, dim=512, latent_token=True)
+		self.trans = TransformerNet(num_enc=4, num_heads=8, dim_per_head=64, latent_token=True)
 		# whether need last embedding layer 
 		self.emb = M.Dense(emb_dim)
 	
@@ -192,4 +198,9 @@ class FaceNet(M.Model):
 		x = self.emb(x)
 		return x 
 
-
+if __name__=='__main__':
+	x = torch.rand(2, 36, 3, 32, 32)
+	net = FaceTransNet()
+	y = net(x)
+	print(y)
+	print(y.shape)

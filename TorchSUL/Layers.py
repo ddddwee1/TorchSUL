@@ -358,7 +358,7 @@ class fclayer(Model):
 
 	def build(self, *inputs):
 		# print('building...')
-		self.insize = inputs[0].shape[1]
+		self.insize = inputs[0].shape[-1]
 		self.weight = Parameter(torch.Tensor(self.outsize, self.insize))
 		if self.usebias:
 			self.bias = Parameter(torch.Tensor(self.outsize))
@@ -572,7 +572,7 @@ class LayerNorm(Model):
 	def build(self, *inputs):
 		shape = inputs[0].shape
 		self.n_dims = len(shape)
-		self.dim_to_reduce = list(range(n_dims_to_keep, self.n_dims))
+		self.dim_to_reduce = tuple(range(self.n_dims_to_keep, self.n_dims))
 		if self.affine:
 			self.weight = Parameter(torch.Tensor(shape[self.n_dims_to_keep:]))
 			self.bias = Parameter(torch.Tensor(shape[self.n_dims_to_keep:]))
@@ -584,8 +584,8 @@ class LayerNorm(Model):
 			init.zeros_(self.bias)
 
 	def forward(self, x):
-		mean = torch.mean(x, dims=self.dim_to_reduce, keepdim=True)
-		std = torch.std(x, dims=self.dim_to_reduce, keepdim=True)
+		mean = torch.mean(x, dim=self.dim_to_reduce, keepdim=True)
+		std = torch.std(x, dim=self.dim_to_reduce, keepdim=True)
 		if self.affine:
 			return self.weight * (x - mean) / (std + self.eps) + self.bias
 		else:
