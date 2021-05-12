@@ -189,6 +189,34 @@ class ThreadedDataFrame():
 	def __setstate__(self):
 		pass 
 
+class SulIOExtractor():
+	def __init__(self, inname):
+		self.ioin = sulio.DataFrame(inname, debug=True)
+		self.metas = []
+
+	def write_imgs(self, outfolder, start_class=0):
+		if not os.path.exists(outfolder):
+			os.makedirs(outfolder)
+		_,header0 = self.ioin.read(0)
+		for idd in tqdm(range(header0[0], header0[1])):
+			_, header = self.ioin.read(idd)
+			idfolder = os.path.join(outfolder, '%d'%(len(self.metas)))
+			if not os.path.exists(idfolder):
+				os.makedirs(idfolder)
+			cnt = 0
+			for idx in range(header[0], header[1]):
+				if len(self.metas)>=start_class:
+					img = self.ioin.read_data(idx)
+					imgpath = os.path.join(idfolder, '%d.jpg'%cnt)
+					with open(imgpath, 'wb') as fout:
+						fout.write(img)
+
+				cnt += 1 
+			self.metas.append(cnt)
+
+	def finish(self):
+		pickle.dump(self.metas, open('metas.pkl', 'wb'))
+
 def decode_img(buf):
 	img = np.frombuffer(buf, dtype=np.uint8)
 	img = cv2.imdecode(img, cv2.IMREAD_COLOR)
