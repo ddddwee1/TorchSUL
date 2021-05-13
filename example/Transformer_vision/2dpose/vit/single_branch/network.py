@@ -1,0 +1,75 @@
+import torch 
+import vision_transformer 
+from TorchSUL import Model as M 
+import torch.nn as nn 
+import config 
+
+class DepthToSpace(M.Model):
+	def initialize(self, block_size):
+		self.block_size = block_size
+	def forward(self, x):
+		bsize, chn, h, w = x.shape[0], x.shape[1], x.shape[2], x.shape[3]
+		assert chn%(self.block_size**2)==0, 'DepthToSpace: Channel must be divided by square(block_size)'
+		x = x.view(bsize, -1, self.block_size, self.block_size, h, w)
+		x = x.permute(0,1,4,2,5,3)
+		x = x.reshape(bsize, -1, h*self.block_size, w*self.block_size)
+		return x 
+
+class UpSample(M.Model):
+	def initialize(self, upsample_layers, upsample_chn):
+		self.prevlayers = nn.ModuleList()
+		#self.uplayer = M.DeConvLayer(3, upsample_chn, stride=2, activation=M.PARAM_PRELU, batch_norm=True, usebias=False)
+		self.uplayer = M.ConvLayer(3, upsample_chn*4, activation=M.PARAM_PRELU, usebias=False)
+		self.d2s = DepthToSpace(2)
+		self.postlayers = nn.ModuleList()
+		for i in range(upsample_layers):
+			self.prevlayers.append(M.ConvLayer(3, upsample_chn, activation=M.PARAM_PRELU, batch_norm=True, usebias=False))
+		for i in range(upsample_layers):
+			self.postlayers.append(M.ConvLayer(3, upsample_chn, activation=M.PARAM_PRELU, batch_norm=True, usebias=False))
+	def forward(self, x):
+		for p in self.prevlayers:
+			x = p(x)
+		x = self.uplayer(x)
+		x = self.d2s(x)
+		# print('UPUP', x.shape)
+		for p in self.postlayers:
+			x = p(x)
+		return x 
+
+class DinoNet(M.Model):
+	def initialize(self):
+		self.backbone = vision_transformer.deit_small(patch_size=8)
+		self.upsample = UpSample(1, 32)
+		self.final_conv = M.ConvLayer(1, config.num_pts)
+
+	def forward(self, x):
+		x = self.backbone.forward_2(x)
+		x = x.view(-1, 28, 28, 384) # hard code here
+		x = x.permute(0, 3,1,2)
+		x = self.upsample(x)
+		x = self.final_conv(x)
+		return x 
+
+def get_net():
+	net = DinoNet()
+	x = torch.zeros(1, 3, 224, 224)
+	y = net(x)
+	print(y.shape)
+	checkpoint = torch.load('dino_deitsmall8_pretrain.pth', map_location='cpu')
+	net.backbone.load_state_dict(checkpoint, strict=True)
+	print('Network initialized')
+	return net 
+
+if __name__=='__main__':
+	# net = vision_transformer.deit_small(patch_size=8)
+	# checkpoint = torch.load('dino_deitsmall8_pretrain.pth', map_location='cpu')
+	# net.load_state_dict(checkpoint, strict=True)
+
+	# x = torch.zeros(1, 3, 224, 224)
+	# y = net.forward_2(x)
+	# print(y.shape)
+
+	x = torch.zeros(1, 3, 224, 224)
+	net = get_net()
+	y = net(x)
+	print(y.shape)
