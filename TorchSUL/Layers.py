@@ -571,11 +571,11 @@ class LayerNorm(Model):
 
 	def build(self, *inputs):
 		shape = inputs[0].shape
-		self.n_dims = len(shape)
-		self.dim_to_reduce = tuple(range(self.n_dims_to_keep, self.n_dims))
+		n_dims = len(shape)
+		self.dim_to_reduce = tuple(range(n_dims - self.n_dims_to_keep, n_dims))
 		if self.affine:
-			self.weight = Parameter(torch.Tensor(shape[self.n_dims_to_keep:]))
-			self.bias = Parameter(torch.Tensor(shape[self.n_dims_to_keep:]))
+			self.weight = Parameter(torch.Tensor(*shape[-self.n_dims_to_keep:]))
+			self.bias = Parameter(torch.Tensor(*shape[-self.n_dims_to_keep:]))
 		self.reset_params()
 
 	def reset_params(self):
@@ -636,6 +636,8 @@ def activation(x, act, **kwargs):
 		return F.tanh(x)
 	elif act==6:
 		return torch.sigmoid(x)
+	elif act==10:
+		return F.gelu(x)
 
 class Activation(Model):
 	def initialize(self, act):

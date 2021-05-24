@@ -32,6 +32,7 @@ PARAM_SIGMOID = 6
 PARAM_SWISH = 7
 PARAM_PRELU = 8
 PARAM_PRELU1 = 9
+PARAM_GELU = 10
 
 # recorded paramters 
 def get_record():
