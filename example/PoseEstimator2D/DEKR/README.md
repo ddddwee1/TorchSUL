@@ -1,0 +1,1 @@
+Download pre-trained model [here](https://www.dropbox.com/sh/2p9u6kve3c7g5f3/AACfOaai45t84r5uVpqWYleba?dl=0) and run convert.py 

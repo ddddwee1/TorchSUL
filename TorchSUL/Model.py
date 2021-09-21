@@ -6,6 +6,9 @@ import torch.nn.functional as F
 import os 
 import copy 
 from distutils.version import LooseVersion
+from torch.nn.parameter import Parameter
+import torch.nn.init as init 
+import torchvision.ops as ops
 
 Model = L.Model
 activation = L.activation
@@ -571,3 +574,47 @@ class GraphConvLayer(Model):
 		else:
 			x = L.activation(x, self.activation)
 		return x 
+
+class AdaptConv3(Model):
+	def initialize(self, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, batch_norm=False, activation=-1, usebias=True):
+		regular_matrix = torch.tensor([[-1, -1, -1, 0, 0, 0, 1, 1, 1],\
+			[-1, 0, 1, -1 ,0 ,1 ,-1, 0, 1]])
+		# register to buffer that it can be mangaed by cuda or cpu
+		self.register_buffer('regular_matrix', regular_matrix.float())
+		self.transform_conv = ConvLayer(3, 4)
+		self.translation_conv = ConvLayer(3, 2)
+		self.deform_conv = L.DeformConv2D(3, outchn, stride, pad, dilation_rate, usebias)
+		self.batch_norm = batch_norm
+		if batch_norm:
+			self.bn = L.BatchNorm()
+		self.activation = activation
+		if self.activation == PARAM_PRELU:
+			self.act = torch.nn.PReLU(num_parameters=outchn)
+		elif self.activation==PARAM_PRELU1:
+			self.act = torch.nn.PReLU(num_parameters=1)
+		else:
+			self.act = L.Activation(activation)
+		
+		self.usebias = usebias
+		self.outchn = outchn
+
+	def forward(self, x):
+		N, C, H, W = x.shape
+		trans_mtx = self.transform_conv(x)
+		trans_mtx = trans_mtx.permute(0,2,3,1).reshape((N*H*W,2,2))
+		offset = torch.matmul(trans_mtx, self.regular_matrix)
+		offset = offset-self.regular_matrix
+		offset = offset.transpose(1,2).reshape((N,H,W,18)).permute(0,3,1,2)
+
+		translation = self.translation_conv(x)
+		offset[:,0::2,:,:] += translation[:,0:1,:,:]
+		offset[:,1::2,:,:] += translation[:,1:2,:,:]
+
+		out = self.deform_conv(x, offset)
+		
+		if self.batch_norm:
+			out = self.bn(out)
+		
+		if self.activation!=-1:
+			out = self.act(out)
+		return out 
