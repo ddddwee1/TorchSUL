@@ -208,6 +208,16 @@ class HRNET(M.Model):
 		x = self.lastconv(x)
 		return x
 
+class AdaptConvBlk(M.Model):
+	def initialize(self):
+		self.c = M.AdaptConv3(15, batch_norm=True, usebias=False)
+	
+	def forward(self, x):
+		branch = self.c(x)
+		x = branch + x 
+		x = torch.relu(x)
+		return x 
+
 class DEKR(M.Model):
 	def initialize(self, num_pts):
 		self.backbone = Body()
@@ -220,8 +230,8 @@ class DEKR(M.Model):
 		self.reg_blks_off = nn.ModuleList()
 		self.convs_off = nn.ModuleList()
 		for _ in range(num_pts):
-			self.reg_blks_off.append(M.AdaptConv3(15, batch_norm=True, usebias=False))
-			self.reg_blks_off.append(M.AdaptConv3(15, batch_norm=True, usebias=False))
+			self.reg_blks_off.append(AdaptConvBlk())
+			self.reg_blks_off.append(AdaptConvBlk())
 			self.convs_off.append(M.ConvLayer(1, 2))
 
 	def forward(self, x):

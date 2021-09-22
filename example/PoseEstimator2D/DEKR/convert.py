@@ -8,10 +8,12 @@ import hrnet
 
 update_config(cfg)
 model_dnet = models.hrnet_dekr.get_pose_net(cfg, is_train=False)
-model = loss.ModelWithLoss(model_dnet)
-M.Saver(model).restore('./model/', strict=False)
-# print(model.model)
-model = model.model
+# model = loss.ModelWithLoss(model_dnet)
+# M.Saver(model).restore('./model/', strict=False)
+# # print(model.model)
+# model = model.model
+model_dnet.load_state_dict(torch.load('pose_dekr_hrnetw32_coco.pth'))
+model = model_dnet
 model.eval()
 
 net_dekr = hrnet.DEKR(17)
@@ -199,10 +201,12 @@ print(len(target_params), len(target_buffs))
 
 ylist = model.forward_test(x)
 # print(ylist[0].shape, ylist[1].shape, ylist[2].shape, ylist[3].shape)
-print(ylist[0], ylist[0].shape)
+print(ylist[1], ylist[1].shape)
 # print(ylist.shape)
 
 # net.bn_eps(1e-5)
 y2 = net_dekr(x)
-print(y2[0], y2[0].shape)
+print(y2[1], y2[1].shape)
 print()
+
+M.Saver(net_dekr).save('./model_dekr/model_dekr.pth')
