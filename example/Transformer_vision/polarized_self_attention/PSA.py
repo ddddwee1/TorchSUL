@@ -4,19 +4,20 @@ import TorchSUL.Model as M
 
 class PSA_CH(M.Model):
 	# channel only self attention
-	def initialize(self, attn_ratio=0.5):
+	def initialize(self, attn_ratio=0.5, usebias=False):
 		# attn_ratio: attention ratio 
 		self.attn_ratio = attn_ratio
+		self.usebias = usebias
 
-	def build_forward(self x):
+	def build_forward(self, x):
 		# forward function for building this class
 		attn_ratio = self.attn_ratio
-		attn_chn = x.shape[1]
-		self.wq = M.ConvLayer(1)
-		self.wv = M.ConvLayer(int(attn_chn * attn_ratio))
+		out_chn = x.shape[1]
+		self.wq = M.ConvLayer(1, 1, usebias=self.usebias)
+		self.wv = M.ConvLayer(1, int(out_chn * attn_ratio), usebias=self.usebias)
 		self.wout = M.Dense(out_chn)
 		self.ln = nn.LayerNorm(out_chn)
-		self.forward(x)
+		return self.forward(x)
 
 	def forward(self, x): 
 		inp = x
@@ -35,15 +36,16 @@ class PSA_CH(M.Model):
 
 class PSA_SP(M.Model):
 	# spatial only self attention
-	def initialize(self, attn_ratio):
+	def initialize(self, attn_ratio=0.5, usebias=False):
 		self.attn_ratio = attn_ratio
+		self.usebias = usebias
 
 	def build_forward(self, x):
 		attn_ratio = self.attn_ratio
 		attn_chn = x.shape[1]
-		self.wq = M.ConvLayer(int(attn_chn * attn_ratio))
-		self.wv = M.ConvLayer(int(attn_chn * attn_ratio))
-		self.forward(x)
+		self.wq = M.ConvLayer(1, int(attn_chn * attn_ratio), usebias=self.usebias)
+		self.wv = M.ConvLayer(1, int(attn_chn * attn_ratio), usebias=self.usebias)
+		return self.forward(x)
 
 	def forward(self, x):
 		inp = x 
@@ -57,3 +59,14 @@ class PSA_SP(M.Model):
 		out = inp * z 
 		return out 
 
+if __name__=='__main__':
+	# for debug purpose
+	net = PSA_CH(0.5)
+
+	x = torch.ones(4, 10, 6, 6)
+
+	out = net(x)
+	print(out.shape)
+
+	for n,p in net.named_parameters():
+		print(n, p.shape)
