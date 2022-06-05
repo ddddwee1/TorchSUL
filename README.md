@@ -42,6 +42,8 @@ You can find some examples in the "example" folder.
 
 - Fractal Net (Larsson, Gustav, Michael Maire, and Gregory Shakhnarovich. "Fractalnet: Ultra-deep neural networks without residuals." arXiv preprint arXiv:1605.07648 (2016))
 
+- Polarized Self Attention (Liu, Huajun, et al. "Polarized self-attention: Towards high-quality pixel-wise regression." arXiv preprint arXiv:2107.00782 (2021))
+
 - Model conversions 
 
 - Batch_norm compression to speed-up models 
