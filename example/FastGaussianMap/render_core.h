@@ -3,4 +3,4 @@
 
 using namespace std;
 
-void _get_gaus(float* map, int size, float sigma, float x, float y);
+void _get_gaus(float* map, int sizeh, int sizew, float sigma, float* pts, int n_batch, int n_pts);

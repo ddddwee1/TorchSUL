@@ -9,5 +9,9 @@ setup(
     ext_modules=[Extension("render_core_cython",
                  sources=["render_core_cython.pyx", "render_core.cpp"],
                  language='c++',
-                 include_dirs=[numpy.get_include()])],
+                 include_dirs=[numpy.get_include()],
+                 extra_compile_args=['-fopenmp'],
+                 extra_link_args=['-lgomp']
+                 )],
+
 )
