@@ -20,6 +20,7 @@ class Model(nn.Module):
 		self._record = False
 		self._merge_bn = False
 		self.is_built = False
+		self._model_flags = {}
 		self.initialize(*args, **kwargs)
 
 	def initialize(self, *args, **kwargs):
@@ -81,6 +82,14 @@ class Model(nn.Module):
 		def set_merge_bn(obj):
 			obj._merge_bn = True 
 		self.apply(set_merge_bn)
+
+	def set_flag(self, k, v):
+		def set_model_flag(obj):
+			obj[k] = v 
+		self.apply(set_model_flag)
+
+	def get_flag(self, k):
+		self._model_flags.get(k, None)
 
 	def bn_eps(self, value):
 		def set_eps(obj):
@@ -147,6 +156,7 @@ class conv2D(Model):
 		if self.usebias:
 			conv.bias.data[:] = self.bias.data[:]
 		return conv 
+
 
 class deconv2D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True, gropus=1):
