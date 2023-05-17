@@ -215,6 +215,7 @@ class ConvLayer(Model):
 					res[p[0]] = p[1]
 			L.record_params.append(res)
 		return x 
+
 	def to_torch(self):
 		conv = self.conv.to_torch()
 		setattr(self, 'conv', conv)
@@ -224,6 +225,25 @@ class ConvLayer(Model):
 		if self.activation==PARAM_RELU:
 			relu = nn.ReLU()
 			setattr(self, 'act', relu)
+
+	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+		keys = list(state_dict.keys())
+		if (prefix+'conv.weight') in keys:
+			super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
+		elif (self.get_flag('fc2conv')) and ((prefix + 'fc.weight') in keys):
+			assert self.conv.size==1, 'fc2conv must set kernel size to 1'
+			w = state_dict[prefix+'fc.weight'].unsqueeze(-1).unsqueeze(-1)
+			self.conv.weight.data[:] = w.data[:]
+			if self.conv.usebias:
+				if (prefix + 'fc.bias') in keys:
+					b = state_dict[prefix+'fc.bias']
+					self.conv.bias.data[:] = b.data[:]
+				else:
+					raise Exception('Bias not exists in checkpoint for layer', prefix)
+			else:
+				if strict and ((prefix + 'fc.bias') in keys):
+					raise Exception('Bias is not used but exists in checkpoint for layer', prefix)
+
 
 class DeConvLayer(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
