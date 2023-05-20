@@ -1,3 +1,4 @@
+import functools
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F 
@@ -85,11 +86,12 @@ class Model(nn.Module):
 
 	def set_flag(self, k, v):
 		def set_model_flag(obj):
-			obj[k] = v 
+			if hasattr(obj, '_model_flags'):
+				obj._model_flags[k] = v 
 		self.apply(set_model_flag)
 
 	def get_flag(self, k):
-		self._model_flags.get(k, None)
+		return self._model_flags.get(k, None)
 
 	def bn_eps(self, value):
 		def set_eps(obj):
@@ -655,7 +657,7 @@ class Activation(Model):
 	def initialize(self, act):
 		self.act = act 
 		if act==8:
-			self.act = torch.nn.PReLU(num_parameters=outchn)
+			self.act = torch.nn.PReLU(num_parameters=outchn)  # this line is buggy
 		elif act==9:
 			self.act = torch.nn.PReLU(num_parameters=1)
 	def forward(self, x):

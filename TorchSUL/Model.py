@@ -231,8 +231,8 @@ class ConvLayer(Model):
 		if (prefix+'conv.weight') in keys:
 			super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
 		elif (self.get_flag('fc2conv')) and ((prefix + 'fc.weight') in keys):
-			assert self.conv.size==1, 'fc2conv must set kernel size to 1'
 			w = state_dict[prefix+'fc.weight'].unsqueeze(-1).unsqueeze(-1)
+			# print(prefix)
 			self.conv.weight.data[:] = w.data[:]
 			if self.conv.usebias:
 				if (prefix + 'fc.bias') in keys:
@@ -548,8 +548,8 @@ class ConvLSTM(Model):
 		self.fh = L.conv2D(3, chn)
 		self.ox = L.conv2D(3, chn)
 		self.oh = L.conv2D(3, chn)
-		self.gx = L.conv2D(3, chn)
-		self.gh = L.conv2D(3, chn)
+		self.ix = L.conv2D(3, chn)
+		self.ih = L.conv2D(3, chn)
 
 	def forward(self, x, c, h):
 		gx = self.gx(x)
@@ -561,8 +561,8 @@ class ConvLSTM(Model):
 		fx = self.fx(x)
 		fh = self.fh(h)
 
-		gx = self.gx(x)
-		gh = self.gh(h)
+		ix = self.ix(x)
+		ih = self.ih(h)
 
 		g = torch.tanh(gx + gh)
 		o = torch.sigmoid(ox + oh)
