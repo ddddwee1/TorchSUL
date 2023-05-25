@@ -23,6 +23,8 @@ MaxPool2D = L.MaxPool2d
 AvgPool2D = L.AvgPool2d
 NNUpSample = L.NNUpSample
 BilinearUpSample = L.BilinearUpSample
+QAct = L.QAct
+QQuantizers = L.QQuantizers
 
 # activation const
 PARAM_RELU = 0

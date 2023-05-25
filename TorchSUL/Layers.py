@@ -20,6 +20,9 @@ class Model(nn.Module):
 		super(Model, self).__init__()
 		self._record = False
 		self._merge_bn = False
+		self._quant_calibrating = False
+		self._quant_calibrated = False
+		self._quant = False
 		self.is_built = False
 		self._model_flags = {}
 		self.initialize(*args, **kwargs)
@@ -27,10 +30,17 @@ class Model(nn.Module):
 	def initialize(self, *args, **kwargs):
 		pass 
 
-	def build(self, *inputs):
-		pass 
+	def build(self, *inputs, **kwargs):
+		if self._quant:
+			self.start_quant()
+		for k in self._model_flags:
+			self.set_flag(k, self._model_flags[k])
 
 	def build_forward(self, *inputs, **kwargs):
+		if self._quant:
+			self.start_quant()
+		for k in self._model_flags:
+			self.set_flag(k, self._model_flags[k])
 		return self.forward(*inputs, **kwargs)
 
 	def __call__(self, *input, **kwargs):
@@ -98,6 +108,247 @@ class Model(nn.Module):
 			obj.eps = value
 		self.apply(set_eps)
 
+	def start_calibrate(self):
+		def set_calibarte(obj):
+			if obj._quant:
+				obj._quant_calibrating = True
+		self.apply(set_calibarte)
+
+	def end_calibrate(self):
+		def unset_calibrate(obj):
+			if obj._quant:
+				obj._quant_calibrating = False
+				if hasattr(obj, '_finish_calibrate'):
+					obj._finish_calibrate()
+				obj._quant_calibrated = True
+		self.apply(unset_calibrate)
+
+	def start_quant(self):
+		def set_quant(obj):
+			obj._quant = True
+		self.apply(set_quant)
+
+	def end_quant(self):
+		def unset_quant(obj):
+			obj._quant = False
+		self.apply(unset_quant)
+
+##### In this version, quant objects are stored here. This is not a good programming behavior. 
+##### The code will be re-organized in later version 
+
+class QUint8():
+	max_val = 2 ** 8 -1 
+	min_val = 0 
+	signed = False
+
+class QInt8():
+	max_val = 2 ** 7 - 1 
+	min_val = - 2 ** 7 
+	signed = True 
+
+QTYPES = {"uint8": QUint8, "int8": QInt8}
+
+class PercentileObserver(Model):
+	def initialize(self, bit_type, zero_offset, mode='layer_wise', is_weight=False):
+		assert mode in ['layer_wise', 'channel_wise']
+		self.min_val = None 
+		self.max_val = None 
+		self.mode = mode 
+		self.bit_type = bit_type
+		self.zero_offset = zero_offset
+		self.is_weight = is_weight
+		self.scale = None 
+		self.zero_point = None 
+		self.sigma = 0.01 
+		self.percentile = 0.999
+
+	def build(self, x):
+		if len(x.shape)==4:
+			# b,c,h,w
+			self.dim = -3
+			if self.is_weight:
+				self.dim = -4
+		else:
+			self.dim = -1
+
+	def observe(self, x):
+		if self.mode == 'channel_wise':
+			x = x.transpose(0, self.dim)
+			x = x.flatten(1)
+			minv = torch.quantile(x.cuda(), 1-self.percentile, dim=1).cpu()
+			maxv = torch.quantile(x.cuda(), self.percentile, dim=1).cpu()
+		else:
+			minv = torch.quantile(x.cuda(), 1-self.percentile).cpu()
+			maxv = torch.quantile(x.cuda(), self.percentile).cpu()
+		if self.min_val is None:
+			self.min_val = minv
+			self.max_val = maxv
+		else:
+			self.min_val = self.sigma * minv + (1 - self.sigma) * self.min_val
+			self.max_val = self.sigma * maxv + (1 - self.sigma) * self.max_val
+
+	def get_quant_params(self):
+		if self.zero_offset:
+			max_val = torch.max(self.max_val, -self.min_val)
+			scale = max_val / min(self.bit_type.max_val, -self.bit_type.min_val)
+			zero_point = torch.zeros_like(max_val)
+		else:
+			scale = (self.max_val - self.min_val) / float(self.bit_type.max_val - self.bit_type.min_val)
+			zero_point = self.bit_type.min_val - torch.round(self.min_val / scale)
+		scale.clamp(torch.finfo(torch.float32).eps)
+		return scale, zero_point
+
+	def _finish_calibrate(self):
+		# print('Recording calibrated values...')
+		if self.scale is None:
+			self.scale, self.zero_point = self.get_quant_params()
+
+	def forward(self, x):
+		if self._quant_calibrating:
+			self.observe(x)
+		return x 
+
+	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+		if prefix+'scale' in state_dict:
+			print('Quant params loaded.')
+			self.scale = state_dict[prefix + 'scale']
+			self.zero_point = state_dict[prefix + 'zero_point']
+
+	def _save_to_state_dict(self, destination, prefix, keep_vars):
+		if self._quant_calibrated:
+			destination[prefix + 'scale'] = self.scale 
+			destination[prefix + 'zero_point'] = self.zero_point
+			print('Quant param saved.')
+
+
+class MinMaxObserver(Model):
+	def initialize(self, bit_type, zero_offset, mode='layer_wise', is_weight=False):
+		assert mode in ['layer_wise', 'channel_wise']
+		self.min_val = None 
+		self.max_val = None 
+		self.mode = mode 
+		self.bit_type = bit_type
+		self.zero_offset = zero_offset
+		self.is_weight = is_weight
+		self.scale = None 
+		self.zero_point = None 
+
+	def build(self, x):
+		if len(x.shape)==4:
+			# b,c,h,w
+			self.dim = -3
+			if self.is_weight:
+				self.dim = -4
+		else:
+			self.dim = -1
+
+	def observe(self, x):
+		if self.mode == 'channel_wise':
+			x = x.transpose(0, self.dim)
+			x = x.flatten(1)
+			minv = x.min(dim=1)[0]
+			maxv = x.max(dim=1)[0]
+		else:
+			minv = x.min()
+			maxv = x.max()
+		if self.min_val is None:
+			self.min_val = minv
+			self.max_val = maxv
+		else:
+			self.min_val = torch.minimum(self.min_val, minv)
+			self.max_val = torch.maximum(self.max_val, maxv)
+
+	def get_quant_params(self):
+		if self.zero_offset:
+			max_val = torch.max(self.max_val, -self.min_val)
+			scale = max_val / min(self.bit_type.max_val, -self.bit_type.min_val)
+			zero_point = torch.zeros_like(max_val)
+		else:
+			scale = (self.max_val - self.min_val) / float(self.bit_type.max_val - self.bit_type.min_val)
+			zero_point = self.bit_type.min_val - torch.round(self.min_val / scale)
+		scale.clamp(torch.finfo(torch.float32).eps)
+		return scale, zero_point
+
+	def _finish_calibrate(self):
+		# print('Recording calibrated values...')
+		if self.scale is None:
+			self.scale, self.zero_point = self.get_quant_params()
+
+	def forward(self, x):
+		if self._quant_calibrating:
+			self.observe(x)
+		return x 
+
+	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+		if prefix+'scale' in state_dict:
+			print('Quant params loaded.')
+			self.scale = state_dict[prefix + 'scale']
+			self.zero_point = state_dict[prefix + 'zero_point']
+
+	def _save_to_state_dict(self, destination, prefix, keep_vars):
+		if self._quant_calibrated:
+			destination[prefix + 'scale'] = self.scale 
+			destination[prefix + 'zero_point'] = self.zero_point
+			print('Quant param saved.')
+
+
+QObservers = {"minmax": MinMaxObserver, "percentile": PercentileObserver}
+
+class UniformQuantizer(Model):
+	def initialize(self, bit_type='int8', observer='minmax', zero_offset=False, mode='layer_wise', is_weight=False):
+		self.bit_type = QTYPES[bit_type]
+		self.observer = QObservers[observer](self.bit_type, zero_offset, mode, is_weight)
+
+	def build(self, x):
+		if len(x.shape)==4:
+			self.dim = -3
+		else:
+			self.dim = -1 
+
+	def quant(self, x):
+		if self.dim!=-1 and mode=='channel_wise':
+			# make everything run at last dim, no need manually reshape 
+			x = x.transpose(-1, self.dim)
+		x = x / self.observer.scale + self.observer.zero_point
+		x = x.round().clamp(self.bit_type.min_val, self.bit_type.max_val)
+		if self.dim!=-1 and mode=='channel_wise':
+			x = x.transpose(-1, self.dim)
+		return x 
+
+	def dequant(self, x):
+		if self.dim!=-1 and mode=='channel_wise':
+			x = x.transpose(-1, self.dim)
+		x = (x - self.observer.zero_point) * self.observer.scale 
+		if self.dim!=-1 and mode=='channel_wise':
+			x = x.transpose(-1, self.dim)
+		return x 
+
+	def forward(self, x):
+		if self._quant_calibrating:
+			x = self.observer(x)
+		if self._quant and self._quant_calibrated:
+			x = self.quant(x)
+			x = self.dequant(x)
+		return x 
+
+
+QQuantizers = {"uniform": UniformQuantizer}
+
+class QAct(Model):
+	def initialize(self, zero_offset=False, mode='layer_wise', observer='minmax'):
+		self.mode = mode 
+		self.zero_offset = zero_offset
+		self.observer_str = observer
+	def build(self, x):
+		if self._quant:
+			self.quantizer = QQuantizers['uniform'](zero_offset=self.zero_offset, mode=self.mode, observer=self.observer_str)
+	def forward(self, x):
+		if self._quant:
+			x = self.quantizer(x)
+		return x 
+
+######  Layers 
+
 class conv2D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True, gropus=1):
 		self.size = size
@@ -140,6 +391,10 @@ class conv2D(Model):
 			self.register_parameter('bias', None)
 		self.reset_params()
 
+		if self._quant:
+			self.input_quantizer = QQuantizers['uniform'](zero_offset=False)
+			self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
+
 	def reset_params(self):
 		_resnet_normal(self.weight)
 		if self.bias is not None:
@@ -148,7 +403,11 @@ class conv2D(Model):
 			init.uniform_(self.bias, -bound, bound)
 
 	def forward(self, x):
-		return F.conv2d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
+		weight = self.weight
+		if self._quant:
+			x = self.input_quantizer(x)
+			weight = self.w_quantizer(weight)
+		return F.conv2d(x, weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
 
 	def to_torch(self):
 		# print('inchannel',self.inchannel)
@@ -158,6 +417,17 @@ class conv2D(Model):
 		if self.usebias:
 			conv.bias.data[:] = self.bias.data[:]
 		return conv 
+
+	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+		if prefix+'weight' in state_dict:
+			super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
+		else:
+			# print(self.get_flag('fc2conv'), strict)
+			if self.get_flag('fc2conv') or (not strict):
+				# print('Warning: No weight found for layer:', prefix)
+				pass
+			else:
+				raise Exception('No weight found for layer:', prefix)
 
 
 class deconv2D(Model):
