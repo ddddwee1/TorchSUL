@@ -36,6 +36,20 @@ M.Saver(model).save('./quant_model/quanted.pth')
 
 Then, the network parameters and the quant params are saved to './quant_model/quanted.pth' as a state dictionary. 
 
+#### Setting quant bit 
+
+You can set the quantization bit of all Act layers using flags. For example, if you want to set the quant bit to int16:
+
+```
+model.set_flag('QActBit', 'int16')
+```
+
+You probably want to use different types for specific layers. You can just create QAct layers by specifying bit type and this will override the QActBit flag for this layer: 
+
+```
+act1 = M.QAct(bit_type='uint8')
+```
+
 ## Things to notice 
 
 1. Currently the calibration and fake quantization are only supported on CPU. 
