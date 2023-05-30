@@ -110,13 +110,15 @@ class Model(nn.Module):
 
 	def start_calibrate(self):
 		def set_calibarte(obj):
-			if obj._quant:
+			# if hasattr(obj, '_quant'):
+			# 	print(type(obj))
+			if hasattr(obj, '_quant') and obj._quant:
 				obj._quant_calibrating = True
 		self.apply(set_calibarte)
 
 	def end_calibrate(self):
 		def unset_calibrate(obj):
-			if obj._quant:
+			if hasattr(obj, '_quant') and obj._quant:
 				obj._quant_calibrating = False
 				if hasattr(obj, '_finish_calibrate'):
 					obj._finish_calibrate()
@@ -146,7 +148,13 @@ class QInt8():
 	min_val = - 2 ** 7 
 	signed = True 
 
-QTYPES = {"uint8": QUint8, "int8": QInt8}
+class QInt16():
+	max_val = 2 ** 15 - 1 
+	min_val = - 2 ** 15 
+	signed = True 
+
+QTYPES = {"uint8": QUint8, "int8": QInt8, 'int16':QInt16}
+
 
 class PercentileObserver(Model):
 	def initialize(self, bit_type, zero_offset, mode='layer_wise', is_weight=False):
@@ -210,15 +218,17 @@ class PercentileObserver(Model):
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
 		if prefix+'scale' in state_dict:
-			print('Quant params loaded.')
+			# print('Quant params loaded.')
 			self.scale = state_dict[prefix + 'scale']
 			self.zero_point = state_dict[prefix + 'zero_point']
+		else:
+			print('no scale for ', prefix)
 
 	def _save_to_state_dict(self, destination, prefix, keep_vars):
 		if self._quant_calibrated:
 			destination[prefix + 'scale'] = self.scale 
 			destination[prefix + 'zero_point'] = self.zero_point
-			print('Quant param saved.')
+			# print('Quant param saved.')
 
 
 class MinMaxObserver(Model):
@@ -281,53 +291,65 @@ class MinMaxObserver(Model):
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
 		if prefix+'scale' in state_dict:
-			print('Quant params loaded.')
+			# print('Quant params loaded.')
 			self.scale = state_dict[prefix + 'scale']
 			self.zero_point = state_dict[prefix + 'zero_point']
+		else:
+			print('no scale for ', prefix)
 
 	def _save_to_state_dict(self, destination, prefix, keep_vars):
 		if self._quant_calibrated:
 			destination[prefix + 'scale'] = self.scale 
 			destination[prefix + 'zero_point'] = self.zero_point
-			print('Quant param saved.')
+			# print('Quant param saved.')
 
 
-QObservers = {"minmax": MinMaxObserver, "percentile": PercentileObserver}
+QObservers = {"minmax": MinMaxObserver, 'percentile': PercentileObserver}
 
 class UniformQuantizer(Model):
 	def initialize(self, bit_type='int8', observer='minmax', zero_offset=False, mode='layer_wise', is_weight=False):
 		self.bit_type = QTYPES[bit_type]
 		self.observer = QObservers[observer](self.bit_type, zero_offset, mode, is_weight)
+		self.mode = mode 
+		self.is_weight = is_weight
 
 	def build(self, x):
 		if len(x.shape)==4:
-			self.dim = -3
+			if self.is_weight:
+				self.dim = -4
+			else:
+				self.dim = -3
 		else:
 			self.dim = -1 
 
 	def quant(self, x):
-		if self.dim!=-1 and mode=='channel_wise':
+		if self.dim!=-1 and self.mode=='channel_wise':
 			# make everything run at last dim, no need manually reshape 
 			x = x.transpose(-1, self.dim)
 		x = x / self.observer.scale + self.observer.zero_point
 		x = x.round().clamp(self.bit_type.min_val, self.bit_type.max_val)
-		if self.dim!=-1 and mode=='channel_wise':
+		if self.dim!=-1 and self.mode=='channel_wise':
 			x = x.transpose(-1, self.dim)
 		return x 
 
 	def dequant(self, x):
-		if self.dim!=-1 and mode=='channel_wise':
+		if self.dim!=-1 and self.mode=='channel_wise':
 			x = x.transpose(-1, self.dim)
 		x = (x - self.observer.zero_point) * self.observer.scale 
-		if self.dim!=-1 and mode=='channel_wise':
+		if self.dim!=-1 and self.mode=='channel_wise':
 			x = x.transpose(-1, self.dim)
 		return x 
 
-	def forward(self, x):
+	def forward(self, x, debug=False):
 		if self._quant_calibrating:
 			x = self.observer(x)
 		if self._quant and self._quant_calibrated:
+			if self.observer.scale.device!=x.device:
+				self.observer.scale = self.observer.scale.to(x.device)
+				self.observer.zero_point = self.observer.zero_point.to(x.device)
 			x = self.quant(x)
+			if debug:
+				print(x, self.observer.scale, self.observer.zero_point)
 			x = self.dequant(x)
 		return x 
 
@@ -335,16 +357,24 @@ class UniformQuantizer(Model):
 QQuantizers = {"uniform": UniformQuantizer}
 
 class QAct(Model):
-	def initialize(self, zero_offset=False, mode='layer_wise', observer='minmax'):
+	def initialize(self, zero_offset=False, mode='layer_wise', observer='minmax', bit_type=None):
 		self.mode = mode 
 		self.zero_offset = zero_offset
 		self.observer_str = observer
+		self.bit_type = bit_type
 	def build(self, x):
 		if self._quant:
-			self.quantizer = QQuantizers['uniform'](zero_offset=self.zero_offset, mode=self.mode, observer=self.observer_str)
-	def forward(self, x):
+			bit_type = self.get_flag('QActBit')
+			if bit_type is None:
+				bit_type = 'int8'
+			if self.bit_type is not None:
+				bit_type = self.bit_type
+			# else:
+			# 	print('QAct using bit_type:', bit_type)
+			self.quantizer = QQuantizers['uniform'](bit_type=bit_type, zero_offset=self.zero_offset, mode=self.mode, observer=self.observer_str)
+	def forward(self, x, debug=False):
 		if self._quant:
-			x = self.quantizer(x)
+			x = self.quantizer(x, debug=debug)
 		return x 
 
 ######  Layers 
@@ -392,7 +422,12 @@ class conv2D(Model):
 		self.reset_params()
 
 		if self._quant:
-			self.input_quantizer = QQuantizers['uniform'](zero_offset=False)
+			bit_type = self.get_flag('QActBit')
+			if bit_type is None:
+				bit_type = 'int8'
+			# else:
+			# 	print('Conv input using bit_type:', bit_type)
+			self.input_quantizer = QQuantizers['uniform'](zero_offset=False, bit_type=bit_type)
 			self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
 
 	def reset_params(self):
