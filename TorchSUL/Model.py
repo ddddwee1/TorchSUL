@@ -9,8 +9,10 @@ from distutils.version import LooseVersion
 from torch.nn.parameter import Parameter
 import torch.nn.init as init 
 import torchvision.ops as ops
+from . import Quant as Qnt 
+from . import Base 
 
-Model = L.Model
+Model = Base.Model
 activation = L.activation
 Activation = L.Activation
 flatten = L.flatten
@@ -23,8 +25,8 @@ MaxPool2D = L.MaxPool2d
 AvgPool2D = L.AvgPool2d
 NNUpSample = L.NNUpSample
 BilinearUpSample = L.BilinearUpSample
-QAct = L.QAct
-QQuantizers = L.QQuantizers
+QAct = Qnt.QAct
+QQuantizers = Qnt.QQuantizers
 
 # activation const
 PARAM_RELU = 0
