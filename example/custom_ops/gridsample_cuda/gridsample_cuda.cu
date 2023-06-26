@@ -59,8 +59,8 @@ __global__ void gridsample_cuda_kernel(
 	scalar_t x, y, v;
 	// std::vector<scalar_t> buff;
 	for (i=n_thread; i<Hout*Wout; i=i+N){
-		x = n_thread%Wout; 
-		y = n_thread/Wout;
+		x = i%Wout; 
+		y = i/Wout;
 		v = get_pixel_and_weights(value, grid[B][y][x][0]*(W-1), grid[B][y][x][1]*(H-1), H, W, B, C);
 		// printf("%f\n", v);
 		// v = buff[0]*buff[4] + buff[1]*buff[5] + buff[2]*buff[6] + buff[3]*buff[7];
