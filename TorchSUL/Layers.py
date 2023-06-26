@@ -589,7 +589,7 @@ def activation(x, act, **kwargs):
 	elif act==0:
 		return F.relu(x)
 	elif act==1:
-		return F.leaky_relu(x, negative_slope=0.2)
+		return F.leaky_relu(x, negative_slope=0.1)
 	elif act==2:
 		return F.elu(x)
 	elif act==3:
