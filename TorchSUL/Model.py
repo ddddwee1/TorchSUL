@@ -4,7 +4,8 @@ import torch
 import torch.nn as nn 
 import torch.nn.functional as F 
 import os 
-import copy 
+import copy
+import inspect
 from distutils.version import LooseVersion
 from torch.nn.parameter import Parameter
 import torch.nn.init as init 
@@ -27,6 +28,7 @@ NNUpSample = L.NNUpSample
 BilinearUpSample = L.BilinearUpSample
 QAct = Qnt.QAct
 QQuantizers = Qnt.QQuantizers
+quant = Qnt   # alias for quantization module 
 
 # activation const
 PARAM_RELU = 0
@@ -79,6 +81,30 @@ def to_standard_torch(model, inplace=True):
 		else:
 			to_standard_torch(c)
 	return model 
+
+def inspect_quant_params(module, result_dict=dict(), prefix=''):
+	if isinstance(module, QAct):
+		zero_point = module.quantizer.observer.zero_point
+		scale = module.quantizer.observer.scale 
+		result_dict[prefix] = [scale, zero_point]
+		return result_dict
+	if isinstance(module, ConvLayer):
+		scale = module.conv.input_quantizer.observer.scale
+		zero_point = module.conv.input_quantizer.observer.zero_point
+		result_dict[prefix+'/conv/Conv__input'] = [scale, zero_point]
+		scale = module.conv.w_quantizer.observer.scale
+		zero_point = module.conv.w_quantizer.observer.zero_point
+		result_dict[prefix+'/conv/Conv__weight'] = [scale, zero_point]
+		return result_dict
+	if isinstance(module, nn.ModuleList):
+		for i in range(len(module)):
+			inspect_quant_params(module[i], result_dict=result_dict, prefix=prefix+'.%d'%i)
+		return result_dict
+	results = inspect.getmembers(module)
+	for name, child_module in results:
+		if isinstance(child_module, nn.Module):
+			inspect_quant_params(child_module, result_dict=result_dict, prefix=prefix+'/'+name)
+	return result_dict
 
 class Saver():
 	def __init__(self, module):
