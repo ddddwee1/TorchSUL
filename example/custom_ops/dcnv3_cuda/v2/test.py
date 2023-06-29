@@ -8,7 +8,7 @@ from tqdm import trange
 # v: [B, G, C, H, W]
 # g: [B, Ho, Wo, G, P, 2]
 v = torch.randn(512, 64, 64, 64).cuda().contiguous()
-g = torch.rand(512, 64, 64, 72).cuda().contiguous()
+g = torch.rand(512, 64, 64, 72).cuda().contiguous() / 64
 m = torch.rand(512, 64, 64, 36).cuda().contiguous()
 # print(torch.cuda.memory_summary())
 # g = torch.zeros(1,1,1,2).cuda()
@@ -17,7 +17,7 @@ m = torch.rand(512, 64, 64, 36).cuda().contiguous()
 repeat = 100
 t1 = time.time()
 for i in range(repeat):
-	res = dcn.dcn(v, g, m)
+	res = dcn.dcn(v, g, m, 9, 4)
 torch.cuda.synchronize()
 t2 = time.time()
 print('Kernel implementation:', (t2-t1)/repeat)
