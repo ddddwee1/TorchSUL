@@ -24,7 +24,8 @@ class Model(nn.Module):
 			self.set_flag(k, self._model_flags[k])
 			
 	def build(self, *inputs, **kwargs):
-		self._set_status()
+		#self._set_status()
+		pass
 
 	def build_forward(self, *inputs, **kwargs):
 		return self.forward(*inputs, **kwargs)
@@ -32,6 +33,7 @@ class Model(nn.Module):
 	def __call__(self, *input, **kwargs):
 		if not self.is_built:
 			self.build(*input)
+			self._set_status()
 		for hook in self._forward_pre_hooks.values():
 			result = hook(self, input)
 			if result is not None:
