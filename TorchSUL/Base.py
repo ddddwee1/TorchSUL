@@ -17,17 +17,16 @@ class Model(nn.Module):
 	def initialize(self, *args, **kwargs):
 		pass 
 
-	def build(self, *inputs, **kwargs):
+	def _set_status(self):
 		if self._quant:
 			self.start_quant()
 		for k in self._model_flags:
 			self.set_flag(k, self._model_flags[k])
+			
+	def build(self, *inputs, **kwargs):
+		self._set_status()
 
 	def build_forward(self, *inputs, **kwargs):
-		if self._quant:
-			self.start_quant()
-		for k in self._model_flags:
-			self.set_flag(k, self._model_flags[k])
 		return self.forward(*inputs, **kwargs)
 
 	def __call__(self, *input, **kwargs):
@@ -44,6 +43,7 @@ class Model(nn.Module):
 		else:
 			if not self.is_built:
 				result = self.build_forward(*input, **kwargs)
+				self._set_status()
 			else:
 				result = self.forward(*input, **kwargs)
 		for hook in self._forward_hooks.values():
