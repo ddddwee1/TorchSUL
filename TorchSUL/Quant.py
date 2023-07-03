@@ -35,7 +35,7 @@ class PercentileObserver(Model):
 		self.scale = None 
 		self.zero_point = None 
 		self.sigma = 0.01 
-		self.percentile = 0.999
+		self.percentile = 0.99999
 
 	def build(self, x):
 		if len(x.shape)==4:
@@ -170,8 +170,105 @@ class MinMaxObserver(Model):
 			destination[prefix + 'zero_point'] = self.zero_point
 			# print('Quant param saved.')
 
+class OmseObserver(Model):
+	def initialize(self, bit_type, zero_offset, mode='layer_wise', is_weight=False):
+		assert mode in ['layer_wise', 'channel_wise']
+		self.min_val = None 
+		self.max_val = None 
+		self.mode = mode 
+		self.bit_type = bit_type
+		self.zero_offset = zero_offset
+		self.is_weight = is_weight
+		self.scale = None 
+		self.zero_point = None 
 
-QObservers = {"minmax": MinMaxObserver, 'percentile': PercentileObserver}
+	def build(self, x):
+		if len(x.shape)==4:
+			# b,c,h,w
+			self.dim = -3
+			if self.is_weight:
+				self.dim = -4
+		else:
+			self.dim = -1
+
+	def observe(self, x):
+		if self.mode == 'channel_wise':
+			x = x.transpose(0, self.dim)
+			x = x.flatten(1)
+			minv = x.min(dim=1)[0]
+			maxv = x.max(dim=1)[0]
+		else:
+			minv = x.min()
+			maxv = x.max()
+		if self.min_val is None:
+			self.min_val = minv
+			self.max_val = maxv
+		else:
+			self.min_val = torch.minimum(self.min_val, minv)
+			self.max_val = torch.maximum(self.max_val, maxv)
+
+		self.x_buffer = x 
+
+	@torch.no_grad()
+	def _least_square(self, scale, factor):
+		if self.zero_offset:
+			zero_point = torch.zeros_like(self.max_val)
+		else:
+			zero_point = self.bit_type.min_val - torch.round(self.min_val * factor / scale)
+		scale = scale * factor
+		x_buffer_q = self.x_buffer / scale + zero_point
+		x_buffer_q = x_buffer_q.round().clamp(self.bit_type.min_val, self.bit_type.max_val)
+		x_buffer_q = (x_buffer_q - zero_point) * scale 
+		return torch.pow(x_buffer_q - self.x_buffer, 2).mean(), scale, zero_point
+
+	def get_quant_params(self):
+		if self.zero_offset:
+			max_val = torch.max(self.max_val, -self.min_val)
+			scale = max_val / min(self.bit_type.max_val, -self.bit_type.min_val)
+		else:
+			scale = (self.max_val - self.min_val) / float(self.bit_type.max_val - self.bit_type.min_val)
+		scale.clamp(torch.finfo(torch.float32).eps)
+		min_score = None 
+		scale_best = None 
+		zero_point_best = None
+		for i in range(50):
+			factor = 1 - 0.01*i
+			score, scale_i, zero_point_i = self._least_square(scale, factor)
+			if min_score is None:
+				min_score = score
+				scale_best = scale_i 
+				zero_point_best = zero_point_i
+			if score<min_score:
+				min_score = score
+				scale_best = scale_i
+				zero_point_best = zero_point_i
+		return scale_best, zero_point_best
+
+	def _finish_calibrate(self):
+		# print('Recording calibrated values...')
+		if self.scale is None:
+			self.scale, self.zero_point = self.get_quant_params()
+
+	def forward(self, x):
+		if self._quant_calibrating:
+			self.observe(x)
+		return x 
+
+	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+		if prefix+'scale' in state_dict:
+			# print('Quant params loaded.')
+			self.scale = state_dict[prefix + 'scale']
+			self.zero_point = state_dict[prefix + 'zero_point']
+		else:
+			print('no scale for ', prefix)
+
+	def _save_to_state_dict(self, destination, prefix, keep_vars):
+		if self._quant_calibrated:
+			destination[prefix + 'scale'] = self.scale 
+			destination[prefix + 'zero_point'] = self.zero_point
+			# print('Quant param saved.')
+
+QObservers = {"minmax": MinMaxObserver, 'percentile': PercentileObserver, 'omse': OmseObserver}
 
 class UniformQuantizer(Model):
 	def initialize(self, bit_type='int8', observer='minmax', zero_offset=False, mode='layer_wise', is_weight=False):
@@ -224,7 +321,7 @@ class UniformQuantizer(Model):
 QQuantizers = {"uniform": UniformQuantizer}
 
 class QAct(Model):
-	def initialize(self, zero_offset=False, mode='layer_wise', observer='minmax', bit_type=None):
+	def initialize(self, zero_offset=False, mode='layer_wise', observer=None, bit_type=None):
 		self.mode = mode 
 		self.zero_offset = zero_offset
 		self.observer_str = observer
@@ -236,9 +333,13 @@ class QAct(Model):
 				bit_type = 'int8'
 			if self.bit_type is not None:
 				bit_type = self.bit_type
-			# else:
-			# 	print('QAct using bit_type:', bit_type)
-			self.quantizer = QQuantizers['uniform'](bit_type=bit_type, zero_offset=self.zero_offset, mode=self.mode, observer=self.observer_str)
+
+			obs_type = self.get_flag('QActObserver')
+			if obs_type is None:
+				obs_type = 'minmax'
+			if self.observer_str is not None:
+				obs_type = self.observer_str
+			self.quantizer = QQuantizers['uniform'](bit_type=bit_type, zero_offset=self.zero_offset, mode=self.mode, observer=obs_type)
 	def forward(self, x, debug=False):
 		if self._quant:
 			x = self.quantizer(x, debug=debug)

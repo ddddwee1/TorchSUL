@@ -51,9 +51,7 @@ class conv2D(Model):
 			self.size = [self.outchn, inchannel // self.gropus, self.size, self.size]
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
-		# self.inchannel = inp
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size))
 		if self.usebias:
@@ -66,9 +64,10 @@ class conv2D(Model):
 			bit_type = self.get_flag('QActBit')
 			if bit_type is None:
 				bit_type = 'int8'
-			# else:
-			# 	print('Conv input using bit_type:', bit_type)
-			self.input_quantizer = QQuantizers['uniform'](zero_offset=False, bit_type=bit_type)
+			obs_type = self.get_flag('QActObserver')
+			if obs_type is None:
+				obs_type = 'minmax'
+			self.input_quantizer = QQuantizers['uniform'](zero_offset=False, bit_type=bit_type, observer=obs_type)
 			self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
 
 	def reset_params(self):
