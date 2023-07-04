@@ -1,3 +1,4 @@
+import os 
 import torch 
 import torch.nn as nn 
 import functools
@@ -123,3 +124,8 @@ class Model(nn.Module):
 		def unset_quant(obj):
 			obj._quant = False
 		self.apply(unset_quant)
+
+	def save_tensor(self, out, name):
+		if self.get_flag('save_tensor'):
+			os.makedirs('./layer_dumps/', exist_ok=True)
+			torch.save(out, './layer_dumps/%s.pth'%name.replace('/','_'))

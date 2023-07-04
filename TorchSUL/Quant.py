@@ -215,11 +215,17 @@ class OmseObserver(Model):
 			zero_point = torch.zeros_like(self.max_val)
 		else:
 			zero_point = self.bit_type.min_val - torch.round(self.min_val * factor / scale)
+
+		# only slightly better, need to put the whole process into gpu
+		scale = scale.cuda()
+		zero_point = zero_point.cuda()
+		x_buffer = self.x_buffer.cuda()
+
 		scale = scale * factor
-		x_buffer_q = self.x_buffer / scale + zero_point
+		x_buffer_q = x_buffer / scale + zero_point
 		x_buffer_q = x_buffer_q.round().clamp(self.bit_type.min_val, self.bit_type.max_val)
 		x_buffer_q = (x_buffer_q - zero_point) * scale 
-		return torch.pow(x_buffer_q - self.x_buffer, 2).mean(), scale, zero_point
+		return torch.pow(x_buffer_q - x_buffer, 2).mean(), scale, zero_point
 
 	def get_quant_params(self):
 		if self.zero_offset:
