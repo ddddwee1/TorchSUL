@@ -50,6 +50,20 @@ You probably want to use different types for specific layers. You can just creat
 act1 = M.QAct(bit_type='uint8')
 ```
 
+#### Setting observer type 
+
+You can set the observer type (available: minmax, percentile, omse) by:
+
+```
+model.set_flag('QActObserver', 'omse')
+```
+
+or you can use different type of for specific layers:
+
+```
+act1 = M.QAct(observer='percentile')
+```
+
 ## Things to notice 
 
 1. Currently the calibration and fake quantization are only supported on CPU. 
