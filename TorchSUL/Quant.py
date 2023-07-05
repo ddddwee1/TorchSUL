@@ -1,9 +1,87 @@
 from .Base import Model 
 import torch 
 import torch.nn as nn 
+from torch.nn.parameter import Parameter
+from torch.autograd import Function 
+from torch.autograd.function import once_differentiable
 
-##### In this version, quant objects are stored here. This is not a good programming behavior. 
-##### The code will be re-organized in later version 
+class QATFunc(Function):
+	# quant-aware training function 
+	@staticmethod 
+	def forward(ctx, x, scale, zero_point, Qn, Qp, zero_offset=False, mode='layer_wise', dim=-1):
+		ctx.Qn = Qn 
+		ctx.Qp = Qp 
+		ctx.mode = mode 
+		ctx.dim = dim 
+		ctx.zero_offset = zero_offset
+
+		if dim!=-1 and mode=='channel_wise':
+			# make everything run at last dim, no need manually reshape 
+			x = x.transpose(-1, dim)
+
+		x_back = x 
+		x = x / scale + zero_point
+		x = x.round().clamp(Qn, Qp)
+		ctx.save_for_backward(x_back, x, scale, zero_point)     # save here to save computation for backward
+
+		x = (x - zero_point) * scale 
+		if dim!=-1 and mode=='channel_wise':
+			x = x.transpose(-1, dim)
+		return x
+
+	@staticmethod
+	@once_differentiable
+	def backward(ctx, out_grad):
+		x, x1, scale, zero_point = ctx.saved_tensors
+
+		# compute ds 
+		ds = x1.clone()
+		ds -= zero_point
+		idx = (x1>ctx.Qn) & (x1<ctx.Qp)
+		# print(idx.shape, scale.shape, ds[idx].shape, x.shape)
+		if ctx.mode=='channel_wise':
+			coef = torch.zeros_like(x)
+			coef[idx] += x[idx]
+			ds -= coef / scale
+			ds *= out_grad.transpose(ctx.dim, -1)
+		else:
+			ds[idx] -= x[idx]/scale
+			ds *= out_grad
+
+		# compute db 
+		db = torch.zeros_like(x1)
+		if not ctx.zero_offset:
+			idx = (x1<=ctx.Qn) | (x1>=ctx.Qp)
+			if ctx.mode=='channel_wise':
+				db[idx] += 1
+				db *= -scale
+				db *= out_grad.transpose(ctx.dim, -1)
+			else:
+				db[idx] -= scale
+				db *= out_grad
+
+		# compute dx 
+		dx = out_grad.clone()
+		if ctx.mode=='channel_wise':
+			x1 = x1.transpose(ctx.dim, -1)
+		dx[(x1<=ctx.Qn) | (x1>=ctx.Qp)] = 0
+
+		if ctx.mode=='channel_wise':
+			# use mean here 
+			ds = ds.flatten(0,-2).sum(dim=0)
+			db = db.flatten(0,-2).sum(dim=0)
+		else:
+			ds = ds.sum()
+			db = db.sum()
+
+		return dx, ds, db, None, None, None, None, None
+
+	@staticmethod
+	def symbolic(g, x, scale, zero_point, Qn, Qp, zero_offset=False, mode='layer_wise', dim=-1):
+		return g.op('custom_ops::quant', x, scale, zero_point, Qn_i=int(Qn), Qp_i=int(Qp), zero_offset_i=int(zero_offset), mode_s=mode, dim_i=int(dim)).setType(x.type().with_sizes(x.type().sizes()))
+
+
+##### Quant classes 
 
 class QUint8():
 	max_val = 2 ** 8 -1 
@@ -62,6 +140,7 @@ class PercentileObserver(Model):
 			self.min_val = self.sigma * minv + (1 - self.sigma) * self.min_val
 			self.max_val = self.sigma * maxv + (1 - self.sigma) * self.max_val
 
+	@torch.no_grad()
 	def get_quant_params(self):
 		if self.zero_offset:
 			max_val = torch.max(self.max_val, -self.min_val)
@@ -74,9 +153,10 @@ class PercentileObserver(Model):
 		return scale, zero_point
 
 	def _finish_calibrate(self):
-		# print('Recording calibrated values...')
 		if self.scale is None:
-			self.scale, self.zero_point = self.get_quant_params()
+			s,z = self.get_quant_params()
+			self.scale = Parameter(s)
+			self.zero_point = Parameter(z)
 
 	def forward(self, x):
 		if self._quant_calibrating:
@@ -85,9 +165,8 @@ class PercentileObserver(Model):
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
 		if prefix+'scale' in state_dict:
-			# print('Quant params loaded.')
-			self.scale = state_dict[prefix + 'scale']
-			self.zero_point = state_dict[prefix + 'zero_point']
+			self.scale = Parameter(state_dict[prefix + 'scale'])
+			self.zero_point = Parameter(state_dict[prefix + 'zero_point'])
 		else:
 			print('no scale for ', prefix)
 
@@ -95,7 +174,6 @@ class PercentileObserver(Model):
 		if self._quant_calibrated:
 			destination[prefix + 'scale'] = self.scale 
 			destination[prefix + 'zero_point'] = self.zero_point
-			# print('Quant param saved.')
 
 
 class MinMaxObserver(Model):
@@ -135,6 +213,7 @@ class MinMaxObserver(Model):
 			self.min_val = torch.minimum(self.min_val, minv)
 			self.max_val = torch.maximum(self.max_val, maxv)
 
+	@torch.no_grad()
 	def get_quant_params(self):
 		if self.zero_offset:
 			max_val = torch.max(self.max_val, -self.min_val)
@@ -147,9 +226,10 @@ class MinMaxObserver(Model):
 		return scale, zero_point
 
 	def _finish_calibrate(self):
-		# print('Recording calibrated values...')
 		if self.scale is None:
-			self.scale, self.zero_point = self.get_quant_params()
+			s,z = self.get_quant_params()
+			self.scale = Parameter(s)
+			self.zero_point = Parameter(z)
 
 	def forward(self, x):
 		if self._quant_calibrating:
@@ -158,9 +238,8 @@ class MinMaxObserver(Model):
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
 		if prefix+'scale' in state_dict:
-			# print('Quant params loaded.')
-			self.scale = state_dict[prefix + 'scale']
-			self.zero_point = state_dict[prefix + 'zero_point']
+			self.scale = Parameter(state_dict[prefix + 'scale'])
+			self.zero_point = Parameter(state_dict[prefix + 'zero_point'])
 		else:
 			print('no scale for ', prefix)
 
@@ -168,7 +247,7 @@ class MinMaxObserver(Model):
 		if self._quant_calibrated:
 			destination[prefix + 'scale'] = self.scale 
 			destination[prefix + 'zero_point'] = self.zero_point
-			# print('Quant param saved.')
+
 
 class OmseObserver(Model):
 	def initialize(self, bit_type, zero_offset, mode='layer_wise', is_weight=False):
@@ -216,7 +295,6 @@ class OmseObserver(Model):
 		else:
 			zero_point = self.bit_type.min_val - torch.round(self.min_val * factor / scale)
 
-		# only slightly better, need to put the whole process into gpu
 		scale = scale.cuda()
 		zero_point = zero_point.cuda()
 		x_buffer = self.x_buffer.cuda()
@@ -227,6 +305,7 @@ class OmseObserver(Model):
 		x_buffer_q = (x_buffer_q - zero_point) * scale 
 		return torch.pow(x_buffer_q - x_buffer, 2).mean(), scale, zero_point
 
+	@torch.no_grad()
 	def get_quant_params(self):
 		if self.zero_offset:
 			max_val = torch.max(self.max_val, -self.min_val)
@@ -251,9 +330,10 @@ class OmseObserver(Model):
 		return scale_best, zero_point_best
 
 	def _finish_calibrate(self):
-		# print('Recording calibrated values...')
 		if self.scale is None:
-			self.scale, self.zero_point = self.get_quant_params()
+			s,z = self.get_quant_params()
+			self.scale = Parameter(s)
+			self.zero_point = Parameter(z)
 
 	def forward(self, x):
 		if self._quant_calibrating:
@@ -262,9 +342,8 @@ class OmseObserver(Model):
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
 		if prefix+'scale' in state_dict:
-			# print('Quant params loaded.')
-			self.scale = state_dict[prefix + 'scale']
-			self.zero_point = state_dict[prefix + 'zero_point']
+			self.scale = Parameter(state_dict[prefix + 'scale'])
+			self.zero_point = Parameter(state_dict[prefix + 'zero_point'])
 		else:
 			print('no scale for ', prefix)
 
@@ -272,7 +351,7 @@ class OmseObserver(Model):
 		if self._quant_calibrated:
 			destination[prefix + 'scale'] = self.scale 
 			destination[prefix + 'zero_point'] = self.zero_point
-			# print('Quant param saved.')
+
 
 QObservers = {"minmax": MinMaxObserver, 'percentile': PercentileObserver, 'omse': OmseObserver}
 
@@ -282,6 +361,7 @@ class UniformQuantizer(Model):
 		self.observer = QObservers[observer](self.bit_type, zero_offset, mode, is_weight)
 		self.mode = mode 
 		self.is_weight = is_weight
+		self.zero_offset = zero_offset
 
 	def build(self, x):
 		if len(x.shape)==4:
@@ -292,39 +372,34 @@ class UniformQuantizer(Model):
 		else:
 			self.dim = -1 
 
-	def quant(self, x):
+	def quant_dequant(self, x):
 		if self.dim!=-1 and self.mode=='channel_wise':
 			# make everything run at last dim, no need manually reshape 
 			x = x.transpose(-1, self.dim)
 		x = x / self.observer.scale + self.observer.zero_point
 		x = x.round().clamp(self.bit_type.min_val, self.bit_type.max_val)
-		if self.dim!=-1 and self.mode=='channel_wise':
-			x = x.transpose(-1, self.dim)
-		return x 
-
-	def dequant(self, x):
-		if self.dim!=-1 and self.mode=='channel_wise':
-			x = x.transpose(-1, self.dim)
 		x = (x - self.observer.zero_point) * self.observer.scale 
 		if self.dim!=-1 and self.mode=='channel_wise':
 			x = x.transpose(-1, self.dim)
 		return x 
 
-	def forward(self, x, debug=False):
+	def forward(self, x):
 		if self._quant_calibrating:
 			x = self.observer(x)
 		if self._quant and self._quant_calibrated:
 			if self.observer.scale.device!=x.device:
 				self.observer.scale = self.observer.scale.to(x.device)
 				self.observer.zero_point = self.observer.zero_point.to(x.device)
-			x = self.quant(x)
-			if debug:
-				print(x, self.observer.scale, self.observer.zero_point)
-			x = self.dequant(x)
+			# x = self.quant_dequant(x)
+			if self.get_flag('dump_onnx'):
+				x = QATFunc.apply(x, self.observer.scale.data, self.observer.zero_point.data, self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
+			else:
+				x = QATFunc.apply(x, self.observer.scale, self.observer.zero_point, self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
 		return x 
 
 
 QQuantizers = {"uniform": UniformQuantizer}
+
 
 class QAct(Model):
 	def initialize(self, zero_offset=False, mode='layer_wise', observer=None, bit_type=None):
@@ -346,7 +421,7 @@ class QAct(Model):
 			if self.observer_str is not None:
 				obs_type = self.observer_str
 			self.quantizer = QQuantizers['uniform'](bit_type=bit_type, zero_offset=self.zero_offset, mode=self.mode, observer=obs_type)
-	def forward(self, x, debug=False):
+	def forward(self, x):
 		if self._quant:
-			x = self.quantizer(x, debug=debug)
+			x = self.quantizer(x)
 		return x 
