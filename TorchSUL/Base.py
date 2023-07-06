@@ -132,7 +132,7 @@ class Model(nn.Module):
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
 		super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
-		self._load_from_state_dict2(self, state_dict, prefix)
+		self._load_from_state_dict2(state_dict, prefix)
 
 	def _load_from_state_dict2(self, state_dict, prefix):
 		# conveinient method. Omit infrequent arguments
