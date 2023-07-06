@@ -19,6 +19,7 @@ class QATFunc(Function):
 			# make everything run at last dim, no need manually reshape 
 			x = x.transpose(-1, dim)
 
+		zero_point = zero_point.round()
 		x_back = x 
 		x = x / scale + zero_point
 		x = x.round().clamp(Qn, Qp)

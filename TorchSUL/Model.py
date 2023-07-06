@@ -86,15 +86,15 @@ def inspect_quant_params(module, result_dict=dict(), prefix=''):
 	if isinstance(module, QAct):
 		zero_point = module.quantizer.observer.zero_point
 		scale = module.quantizer.observer.scale 
-		result_dict[prefix] = [scale, zero_point]
+		result_dict[prefix] = [scale, zero_point.round()]
 		return result_dict
 	if isinstance(module, ConvLayer):
 		scale = module.conv.input_quantizer.observer.scale
 		zero_point = module.conv.input_quantizer.observer.zero_point
-		result_dict[prefix+'/conv/Conv__input'] = [scale, zero_point]
+		result_dict[prefix+'/conv/Conv__input'] = [scale, zero_point.round()]
 		scale = module.conv.w_quantizer.observer.scale
 		zero_point = module.conv.w_quantizer.observer.zero_point
-		result_dict[prefix+'/conv/Conv__weight'] = [scale, zero_point]
+		result_dict[prefix+'/conv/Conv__weight'] = [scale, zero_point.round()]
 		return result_dict
 	if isinstance(module, nn.ModuleList):
 		for i in range(len(module)):
