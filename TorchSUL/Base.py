@@ -129,3 +129,11 @@ class Model(nn.Module):
 		if self.get_flag('save_tensor'):
 			os.makedirs('./layer_dumps/', exist_ok=True)
 			torch.save(out, './layer_dumps/%s.pth'%name.replace('/','_'))
+
+	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+		super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
+		self._load_from_state_dict2(self, state_dict, prefix)
+
+	def _load_from_state_dict2(self, state_dict, prefix):
+		# conveinient method. Omit infrequent arguments
+		pass 

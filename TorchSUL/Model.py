@@ -236,7 +236,6 @@ class ConvLayer(Model):
 				if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
 					actw = self.act.weight
 					res['act.weight'] = actw
-				# print(res.keys())
 			else:
 				res = {}
 				for p in self.named_parameters():
@@ -257,22 +256,16 @@ class ConvLayer(Model):
 			setattr(self, 'act', relu)
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
-		keys = list(state_dict.keys())
-		if (prefix+'conv.weight') in keys:
-			super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
-		elif (self.get_flag('fc2conv')) and ((prefix + 'fc.weight') in keys):
-			w = state_dict[prefix+'fc.weight'].unsqueeze(-1).unsqueeze(-1)
-			# print(prefix)
-			self.conv.weight.data[:] = w.data[:]
+		super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
+		if (self.get_flag('fc2conv')) and ((prefix + 'fc.weight') in state_dict):
+			w = state_dict.pop(prefix+'fc.weight').unsqueeze(-1).unsqueeze(-1)
+			state_dict[prefix+'conv.weight'] = w 
 			if self.conv.usebias:
-				if (prefix + 'fc.bias') in keys:
-					b = state_dict[prefix+'fc.bias']
-					self.conv.bias.data[:] = b.data[:]
-				else:
-					raise Exception('Bias not exists in checkpoint for layer', prefix)
+				if prefix+'fc.bias' in state_dict:
+					b = state_dict.pop(prefix+'fc.bias')
+					state_dict[prefix+'conv.bias'] = b
 			else:
-				if strict and ((prefix + 'fc.bias') in keys):
-					raise Exception('Bias is not used but exists in checkpoint for layer', prefix)
+				raise Exception('Bias not found for layer', prefix, '\nTry to set usebias=False to fix this problem')
 
 
 class DeConvLayer(Model):

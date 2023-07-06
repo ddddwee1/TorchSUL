@@ -93,16 +93,16 @@ class conv2D(Model):
 			conv.bias.data[:] = self.bias.data[:]
 		return conv 
 
-	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
-		if prefix+'weight' in state_dict:
-			super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
-		else:
-			# print(self.get_flag('fc2conv'), strict)
-			if self.get_flag('fc2conv') or (not strict):
-				# print('Warning: No weight found for layer:', prefix)
-				pass
-			else:
-				raise Exception('No weight found for layer:', prefix)
+	# def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
+	# 	if prefix+'weight' in state_dict:
+	# 		super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
+	# 	else:
+	# 		# print(self.get_flag('fc2conv'), strict)
+	# 		if self.get_flag('fc2conv') or (not strict):
+	# 			# print('Warning: No weight found for layer:', prefix)
+	# 			pass
+	# 		else:
+	# 			raise Exception('No weight found for layer:', prefix)
 
 
 class deconv2D(Model):
