@@ -273,10 +273,10 @@ class OmseObserver(Model):
 
 	def observe(self, x):
 		if self.mode == 'channel_wise':
-			x = x.transpose(0, self.dim)
-			x = x.flatten(1)
-			minv = x.min(dim=1)[0]
-			maxv = x.max(dim=1)[0]
+			x = x.transpose(-1, self.dim)
+			x = x.flatten(0,-2)
+			minv = x.min(dim=0)[0]
+			maxv = x.max(dim=0)[0]
 		else:
 			minv = x.min()
 			maxv = x.max()
@@ -287,7 +287,7 @@ class OmseObserver(Model):
 			self.min_val = torch.minimum(self.min_val, minv)
 			self.max_val = torch.maximum(self.max_val, maxv)
 
-		self.x_buffer = x 
+		self.x_buffer = x
 
 	@torch.no_grad()
 	def _least_square(self, scale, factor):
@@ -300,6 +300,7 @@ class OmseObserver(Model):
 		zero_point = zero_point.cuda()
 		x_buffer = self.x_buffer.cuda()
 
+		# print(scale.shape, x_buffer.shape)
 		scale = scale * factor
 		x_buffer_q = x_buffer / scale + zero_point
 		x_buffer_q = x_buffer_q.round().clamp(self.bit_type.min_val, self.bit_type.max_val)
