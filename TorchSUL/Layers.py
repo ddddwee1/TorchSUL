@@ -34,7 +34,6 @@ class conv2D(Model):
 	def _parse_args(self, input_shape):
 		inchannel = input_shape[1]
 		self.inchannel = inchannel
-		# print('INC', inchannel)
 		# parse args
 		if isinstance(self.size,list):
 			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
@@ -71,11 +70,17 @@ class conv2D(Model):
 			self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
 
 	def reset_params(self):
-		_resnet_normal(self.weight)
+		if self.get_flag('conv_init_mode')=='normal':
+			init.normal_(self.weight, std=0.001)
+		else:
+			_resnet_normal(self.weight)
 		if self.bias is not None:
-			fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
-			bound = 1 / math.sqrt(fan_in)
-			init.uniform_(self.bias, -bound, bound)
+			if self.get_flag('conv_init_mode')=='normal':
+				init.zeros_(self.bias)
+			else:
+				fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+				bound = 1 / math.sqrt(fan_in)
+				init.uniform_(self.bias, -bound, bound)
 
 	def forward(self, x):
 		weight = self.weight
@@ -85,7 +90,6 @@ class conv2D(Model):
 		return F.conv2d(x, weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
 
 	def to_torch(self):
-		# print('inchannel',self.inchannel)
 		conv = nn.Conv2d(in_channels = self.inchannel, out_channels = self.outchn, kernel_size = tuple(self.size[2:]), stride = self.stride,\
 						padding = self.pad, padding_mode = 'zeros', dilation = self.dilation_rate, groups = self.gropus, bias = self.usebias)
 		conv.weight.data[:] = self.weight.data[:]
@@ -122,7 +126,6 @@ class deconv2D(Model):
 			raise Exception("Deconv kernel only supports int")
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size))
@@ -180,7 +183,6 @@ class dwconv2D(Model):
 			self.size = [self.multiplier * inchannel, 1, self.size, self.size]
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size))
@@ -229,7 +231,6 @@ class conv1D(Model):
 		self.size = [self.outchn, inchannel // self.gropus, self.size]
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size))
@@ -278,7 +279,6 @@ class conv3D(Model):
 			self.size = [self.outchn, inchannel // self.gropus, self.size, self.size, self.size]
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size))
@@ -305,7 +305,6 @@ class fclayer(Model):
 		self.norm = norm
 
 	def build(self, *inputs):
-		# print('building...')
 		self.insize = inputs[0].shape[-1]
 		self.weight = Parameter(torch.Tensor(self.outsize, self.insize))
 		if self.usebias:
@@ -318,7 +317,6 @@ class fclayer(Model):
 		# init.kaiming_uniform_(self.weight, a=math.sqrt(5))
 		init.normal_(self.weight, std=0.001)
 		# _resnet_normal(self.weight)
-		# print('Reset fc params...')
 		if self.bias is not None:
 		# 	fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
 		# 	bound = 1 / math.sqrt(fan_in)
@@ -374,7 +372,6 @@ class MaxPool2d(Model):
 				self.pad = self.size//2
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
 		self._parse_args(inp.shape)
 
@@ -403,7 +400,6 @@ class AvgPool2d(Model):
 				self.pad = self.size//2
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
 		self._parse_args(inp.shape)
 
@@ -424,7 +420,6 @@ class BatchNorm(Model):
 		self.track_running_stats = track_running_stats
 		
 	def build(self, *inputs):
-		# print('building...')
 		num_features = inputs[0].shape[1]
 		self.num_features = num_features
 		if self.affine:
@@ -556,7 +551,6 @@ class NNUpSample(Model):
 		self.size = [self.inchannel, 1, self.scale, self.scale]
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size), requires_grad=False)
@@ -693,7 +687,6 @@ class DeformConv2D(Model):
 	def _parse_args(self, input_shape):
 		inchannel = input_shape[1]
 		self.inchannel = inchannel
-		# print('INC', inchannel)
 		# parse args
 		if isinstance(self.size,list):
 			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
@@ -710,7 +703,6 @@ class DeformConv2D(Model):
 			self.size = [self.outchn, inchannel, self.size, self.size]
 
 	def build(self, *inputs):
-		# print('building...')
 		inp = inputs[0]
 		# self.inchannel = inp
 		self._parse_args(inp.shape)
