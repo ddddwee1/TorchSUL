@@ -1,66 +1,42 @@
 from . import Layers as L 
-import numpy as np 
+from . import Quant as Qnt 
+from . import Base 
+
 import torch 
 import torch.nn as nn 
-import torch.nn.functional as F 
+
 import os 
 import copy
 import inspect
 from distutils.version import LooseVersion
-from torch.nn.parameter import Parameter
-import torch.nn.init as init 
-import torchvision.ops as ops
-from . import Quant as Qnt 
-from . import Base 
+
 
 Model = Base.Model
 activation = L.activation
 Activation = L.Activation
-flatten = L.flatten
-Flatten = L.Flatten
-GlobalAvgPool = L.GlobalAvgPool2D
-GlobalAvgPoolLayer = L.GlobalAvgPool2DLayer
 BatchNorm = L.BatchNorm
 LayerNorm = L.LayerNorm
 MaxPool2D = L.MaxPool2d
 AvgPool2D = L.AvgPool2d
 NNUpSample = L.NNUpSample
 BilinearUpSample = L.BilinearUpSample
+DeformConv2D = L.DeformConv2D
 QAct = Qnt.QAct
 QQuantizers = Qnt.QQuantizers
 quant = Qnt   # alias for quantization module 
 
 # activation const
+# some values are no longer supported 
 PARAM_RELU = 0
 PARAM_LRELU = 1
 PARAM_ELU = 2
 PARAM_TANH = 3
 PARAM_MFM = 4
-PARAM_MFM_FC = 5
 PARAM_SIGMOID = 6
-PARAM_SWISH = 7
 PARAM_PRELU = 8
 PARAM_PRELU1 = 9
 PARAM_GELU = 10
 
-# recorded paramters 
-def get_record():
-	return L.record_params
-def reset_record():
-	L.record_params = []
-
-def init_caffe_input(x):
-	global caffe_string, layer_counter
-	if not 'caffe_string' in globals():
-		caffe_string = ''
-	if not 'layer_counter' in globals():
-		layer_counter = 0
-	caffe_string += 'layer{\n'
-	caffe_string += ' name: "%s"\n'%x[1]()
-	caffe_string += ' type: "Input"\n'
-	caffe_string += ' top: "%s"\n'%x[1]()
-	caffe_string += ' input_param{\n  shape{\n   dim:%d\n   dim:%d\n   dim:%d\n   dim:%d\n  }\n }\n}\n'%(x[0].shape[0], x[0].shape[3], x[0].shape[1], x[0].shape[2])
-	layer_counter += 1 
 
 def init_model(model, *args, **kwargs):
 	# run one forward loop to initialize model 
@@ -106,6 +82,7 @@ def inspect_quant_params(module, result_dict=dict(), prefix=''):
 			inspect_quant_params(child_module, result_dict=result_dict, prefix=prefix+'/'+name)
 	return result_dict
 
+
 class Saver():
 	def __init__(self, module):
 		self.model = module
@@ -128,7 +105,6 @@ class Saver():
 
 	def restore(self, path, strict=True, exclude=None):
 		print('Trying to load from:',path)
-		# print(path[-4:])
 		device = torch.device('cpu')
 		if path[-4:] == '.pth':
 			if not os.path.exists(path):
@@ -159,6 +135,7 @@ class Saver():
 				print('No checkpoint found. No restoration will be performed.')
 
 	def save(self, path):
+		# To make it compatible with older pytorch 
 		directory = os.path.dirname(path)
 		if not os.path.exists(directory):
 			os.makedirs(directory)
@@ -177,6 +154,7 @@ class Saver():
 		ckpt.write(os.path.basename(path))
 		ckpt.close()
 
+
 class ConvLayer(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
 		self.conv = L.conv2D(size, outchn, stride, pad, dilation_rate, usebias, groups)
@@ -190,59 +168,13 @@ class ConvLayer(Model):
 			self.act = torch.nn.PReLU(num_parameters=1)
 		else:
 			self.act = L.Activation(activation)
+
 	def forward(self, x):
-		if self._record:
-			record_flag = True
-			self.un_record()
-		else:
-			record_flag = False
-		# print('Record:',record_flag)
 		x = self.conv(x)
 		if self.batch_norm:
 			x = self.bn(x)
 		if self.activation!=-1:
 			x = self.act(x)
-
-		if record_flag:
-			# print(self._merge_bn)
-			# do record
-			if self._merge_bn:
-				miu = self.bn.running_mean
-				var = self.bn.running_var
-				gamma = self.bn.weight
-				beta = self.bn.bias 
-				eps = self.bn.eps 
-				if gamma is None:
-					gamma = 1 
-				if beta is None:
-					beta = 0
-				weight = self.conv.weight
-				bias = self.conv.bias
-
-				if bias is not None:
-					b = gamma * (bias - miu) / torch.sqrt(eps + var) + beta 
-				else:
-					b = beta - (gamma * miu / torch.sqrt(eps + var))
-				bn_w = gamma / torch.sqrt(eps + var)
-				bn_w = bn_w.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-				w = bn_w * weight
-
-				res = {}
-				base_name = list(self.named_parameters())[0][0]
-				base_name = '.'.join(base_name.split('.')[:-1])
-				res[base_name+'.weight'] = w 
-				res[base_name+'.bias'] = b
-
-				if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
-					actw = self.act.weight
-					res['act.weight'] = actw
-			else:
-				res = {}
-				for p in self.named_parameters():
-					res[p[0]] = p[1]
-				for p in self.named_buffers():
-					res[p[0]] = p[1]
-			L.record_params.append(res)
 		return x 
 
 	def to_torch(self):
@@ -279,13 +211,8 @@ class DeConvLayer(Model):
 			self.act = torch.nn.PReLU(num_parameters=outchn)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
+
 	def forward(self, x):
-		if self._record:
-			record_flag = True
-			self.un_record()
-		else:
-			record_flag = False
-		# print('Record:',record_flag)
 		x = self.conv(x)
 		if self.batch_norm:
 			x = self.bn(x)
@@ -293,48 +220,6 @@ class DeConvLayer(Model):
 			x = self.act(x)
 		else:
 			x = L.activation(x, self.activation)
-
-		if record_flag:
-			# print(self._merge_bn)
-			# do record
-			if self._merge_bn:
-				miu = self.bn.running_mean
-				var = self.bn.running_var
-				gamma = self.bn.weight
-				beta = self.bn.bias 
-				eps = self.bn.eps 
-				if gamma is None:
-					gamma = 1 
-				if beta is None:
-					beta = 0
-				weight = self.conv.weight
-				bias = self.conv.bias
-
-				if bias is not None:
-					b = gamma * (bias - miu) / torch.sqrt(eps + var) + beta 
-				else:
-					b = beta - (gamma * miu / torch.sqrt(eps + var))
-				bn_w = gamma / torch.sqrt(eps + var)
-				bn_w = bn_w.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-				w = bn_w * weight
-
-				res = {}
-				base_name = list(self.named_parameters())[0][0]
-				base_name = '.'.join(base_name.split('.')[:-1])
-				res[base_name+'.weight'] = w 
-				res[base_name+'.bias'] = b
-
-				if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
-					actw = self.act.weight
-					res['act.weight'] = actw
-				# print(res.keys())
-			else:
-				res = {}
-				for p in self.named_parameters():
-					res[p[0]] = p[1]
-				for p in self.named_buffers():
-					res[p[0]] = p[1]
-			L.record_params.append(res)
 		return x 
 
 
@@ -346,6 +231,7 @@ class DWConvLayer(Model):
 		self.batch_norm = batch_norm
 		self.activation = activation
 		self.multiplier = multiplier
+
 	def build(self, *inputs):
 		inp = inputs[0]
 		inchannel = inp.shape[1]
@@ -355,61 +241,15 @@ class DWConvLayer(Model):
 			self.act = torch.nn.PReLU(num_parameters=1)
 		else:
 			self.act = L.Activation(self.activation)
+
 	def forward(self, x):
-		if self._record:
-			record_flag = True
-			self.un_record()
-		else:
-			record_flag = False
 		x = self.conv(x)
 		if self.batch_norm:
 			x = self.bn(x)
 		if self.activation!=-1:
 			x = self.act(x)
-
-
-		if record_flag:
-			# print(self._merge_bn)
-			# do record
-			if self._merge_bn:
-				miu = self.bn.running_mean
-				var = self.bn.running_var
-				gamma = self.bn.weight
-				beta = self.bn.bias 
-				eps = self.bn.eps 
-				if gamma is None:
-					gamma = 1 
-				if beta is None:
-					beta = 0
-				weight = self.conv.weight
-				bias = self.conv.bias
-
-				if bias is not None:
-					b = gamma * (bias - miu) / torch.sqrt(eps + var) + beta 
-				else:
-					b = beta - (gamma * miu / torch.sqrt(eps + var))
-				bn_w = gamma / torch.sqrt(eps + var)
-				bn_w = bn_w.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-				w = bn_w * weight
-
-				res = {}
-				base_name = list(self.named_parameters())[0][0]
-				base_name = '.'.join(base_name.split('.')[:-1])
-				res[base_name+'.weight'] = w 
-				res[base_name+'.bias'] = b
-
-				if self.activation==PARAM_PRELU or self.activation==PARAM_PRELU1:
-					actw = self.act.weight
-					res['act.weight'] = actw
-				# print(res.keys())
-			else:
-				res = {}
-				for p in self.named_parameters():
-					res[p[0]] = p[1]
-				for p in self.named_buffers():
-					res[p[0]] = p[1]
-			L.record_params.append(res)
 		return x 
+
 	def to_torch(self):
 		conv = self.conv.to_torch()
 		setattr(self, 'conv', conv)
@@ -419,6 +259,7 @@ class DWConvLayer(Model):
 		if self.activation==PARAM_RELU:
 			relu = nn.ReLU()
 			setattr(self, 'act', relu)
+
 
 class ConvLayer1D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
@@ -431,6 +272,7 @@ class ConvLayer1D(Model):
 			self.act = torch.nn.PReLU(num_parameters=outchn)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
+
 	def forward(self, x):
 		x = self.conv(x)
 		if self.batch_norm:
@@ -440,6 +282,7 @@ class ConvLayer1D(Model):
 		else:
 			x = L.activation(x, self.activation)
 		return x 
+
 
 class ConvLayer3D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True, groups=1):
@@ -452,6 +295,7 @@ class ConvLayer3D(Model):
 			self.act = torch.nn.PReLU(num_parameters=outchn)
 		elif self.activation==PARAM_PRELU1:
 			self.act = torch.nn.PReLU(num_parameters=1)
+
 	def forward(self, x):
 		x = self.conv(x)
 		if self.batch_norm:
@@ -462,6 +306,7 @@ class ConvLayer3D(Model):
 			x = L.activation(x, self.activation)
 		return x 
 		
+
 class Dense(Model):
 	def initialize(self, outsize, batch_norm=False, affine=True, activation=-1 , usebias=True, norm=False):
 		self.fc = L.fclayer(outsize, usebias, norm)
@@ -473,12 +318,8 @@ class Dense(Model):
 			self.act = torch.nn.PReLU(num_parameters=1)
 		if batch_norm:
 			self.bn = L.BatchNorm(affine=affine)
+
 	def forward(self, x):
-		if self._record:
-			record_flag = True
-			self.un_record()
-		else:
-			record_flag = False
 		x = self.fc(x)
 		if self.batch_norm:
 			x = self.bn(x)
@@ -486,47 +327,8 @@ class Dense(Model):
 			x = self.act(x)
 		else:
 			x = L.activation(x, self.activation)
-		
-		if record_flag:
-			# print(self._merge_bn)
-			# do record
-			if hasattr(self, 'bn') and self._merge_bn:
-				miu = self.bn.running_mean
-				var = self.bn.running_var
-				gamma = self.bn.weight
-				beta = self.bn.bias 
-				eps = self.bn.eps 
-				if gamma is None:
-					gamma = 1 
-				if beta is None:
-					beta = 0
-				weight = self.fc.weight
-				bias = self.fc.bias
-
-				if bias is not None:
-					b = gamma * (bias - miu) / torch.sqrt(eps + var) + beta 
-				else:
-					b = beta - (gamma * miu / torch.sqrt(eps + var))
-				bn_w = gamma / torch.sqrt(eps + var)
-				bn_w = bn_w.unsqueeze(-1)
-				w = bn_w * weight
-
-				res = {}
-				base_name = list(self.named_parameters())[0][0]
-				base_name = '.'.join(base_name.split('.')[:-1])
-				res[base_name+'.weight'] = w 
-				res[base_name+'.bias'] = b
-				# print(res.keys())
-
-			else:
-				res = {}
-				for p in self.named_parameters():
-					res[p[0]] = p[1]
-				for p in self.named_buffers():
-					res[p[0]] = p[1]
-			L.record_params.append(res)
-
 		return x 
+
 	def to_torch(self):
 		fc = self.fc.to_torch()
 		setattr(self, 'fc', fc)
@@ -536,6 +338,7 @@ class Dense(Model):
 		if self.activation==PARAM_RELU:
 			relu = nn.ReLU()
 			setattr(self, 'act', relu)
+
 
 class LSTMCell(Model):
 	def initialize(self, outdim):
@@ -562,6 +365,7 @@ class LSTMCell(Model):
 		next_c = c_prev * f_ + c_ 
 		next_h = o_ * torch.tanh(next_c)
 		return next_h, next_c
+
 
 class ConvLSTM(Model):
 	def initialize(self, chn):
@@ -596,6 +400,7 @@ class ConvLSTM(Model):
 		h = o * torch.tanh(cell)
 		return cell, h 
 
+
 class GraphConvLayer(Model):
 	def initialize(self, outsize, usebias=True, norm=True, activation=-1, batch_norm=False):
 		self.GCL = L.graphConvLayer(outsize, usebias=usebias, norm=norm)
@@ -617,6 +422,7 @@ class GraphConvLayer(Model):
 		else:
 			x = L.activation(x, self.activation)
 		return x 
+
 
 class AdaptConv3(Model):
 	def initialize(self, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, batch_norm=False, activation=-1, usebias=True):

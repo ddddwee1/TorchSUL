@@ -11,8 +11,6 @@ from .Base import Model
 from .Quant import QQuantizers, QObservers, QTYPES
 
 
-record_params = []
-
 def _resnet_normal(tensor):
 	fan_in, fan_out = init._calculate_fan_in_and_fan_out(tensor)
 	std = math.sqrt(2.0 / float(fan_out))
@@ -36,7 +34,6 @@ class conv2D(Model):
 		self.inchannel = inchannel
 		# parse args
 		if isinstance(self.size,list):
-			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
@@ -119,7 +116,6 @@ class deconv2D(Model):
 				self.out_pad = 0
 			else:
 				self.pad = (self.size + (self.dilation_rate-1) * ( self.size-1 ))//2 - (1 - self.size%2)
-				# self.pad = self.dilation_rate * (self.size - 1 ) 
 				self.out_pad = self.stride - 1
 			self.size = [inchannel, self.outchn // self.gropus, self.size, self.size]
 		else:
@@ -151,6 +147,7 @@ class deconv2D(Model):
 				x = x[:,:,:inh*self.stride,:inw*self.stride]
 		return x 
 
+
 class dwconv2D(Model):
 	# depth-wise conv2d
 	def initialize(self, size, multiplier, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True):
@@ -169,7 +166,6 @@ class dwconv2D(Model):
 		self.outchn = self.multiplier * inchannel
 		# parse args
 		if isinstance(self.size,list):
-			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
@@ -209,6 +205,7 @@ class dwconv2D(Model):
 		if self.usebias:
 			conv.bias.data[:] = self.bias.data[:]
 		return conv 
+
 
 class conv1D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True, gropus=1):
@@ -250,6 +247,7 @@ class conv1D(Model):
 	def forward(self, x):
 		return F.conv1d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
 
+
 class conv3D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True, gropus=1):
 		self.size = size
@@ -265,7 +263,6 @@ class conv3D(Model):
 		inchannel = input_shape[1]
 		# parse args
 		if isinstance(self.size,list) or isinstance(self.size, tuple):
-			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
@@ -298,6 +295,7 @@ class conv3D(Model):
 	def forward(self, x):
 		return F.conv3d(x, self.weight, self.bias, self.stride, self.pad, self.dilation_rate, self.gropus)
 
+
 class fclayer(Model):
 	def initialize(self, outsize, usebias=True, norm=False):
 		self.outsize = outsize
@@ -314,13 +312,8 @@ class fclayer(Model):
 		self.reset_params()
 
 	def reset_params(self):
-		# init.kaiming_uniform_(self.weight, a=math.sqrt(5))
 		init.normal_(self.weight, std=0.001)
-		# _resnet_normal(self.weight)
 		if self.bias is not None:
-		# 	fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
-		# 	bound = 1 / math.sqrt(fan_in)
-		# 	init.uniform_(self.bias, -bound, bound)
 			init.zeros_(self.bias)
 
 	def forward(self, x):
@@ -341,13 +334,6 @@ class fclayer(Model):
 			fc.bias.data[:] = self.bias.data[:]
 		return fc 
 
-def flatten(x):
-	x = x.reshape(x.size(0), -1)
-	return x 
-
-class Flatten(Model):
-	def forward(self, x):
-		return flatten(x)
 
 class MaxPool2d(Model):
 	def initialize(self, size, stride=1, pad='SAME_LEFT', dilation_rate=1):
@@ -360,7 +346,6 @@ class MaxPool2d(Model):
 		inchannel = input_shape[1]
 		# parse args
 		if isinstance(self.size,list) or isinstance(self.size, tuple):
-			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
@@ -378,6 +363,7 @@ class MaxPool2d(Model):
 	def forward(self, x):
 		return F.max_pool2d(x, self.size, self.stride, self.pad, self.dilation_rate, False, False)
 
+
 class AvgPool2d(Model):
 	def initialize(self, size, stride=1, pad='SAME_LEFT'):
 		self.size = size
@@ -388,7 +374,6 @@ class AvgPool2d(Model):
 		inchannel = input_shape[1]
 		# parse args
 		if isinstance(self.size,list) or isinstance(self.size, tuple):
-			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
@@ -406,13 +391,14 @@ class AvgPool2d(Model):
 	def forward(self, x):
 		return F.avg_pool2d(x, self.size, self.stride, self.pad, False, True)
 
+
 class BatchNorm(Model):
 	# _version = 2
 	# __constants__ = ['track_running_stats', 'momentum', 'eps', 'weight', 'bias',
 	# 				 'running_mean', 'running_var', 'num_batches_tracked',
 	# 				 'num_features', 'affine', 'weight', 'bias']
 
-	def initialize(self, eps=2e-5, momentum=0.01, affine=True,
+	def initialize(self, eps=None, momentum=0.01, affine=True,
 				 track_running_stats=True):
 		self.eps = eps
 		self.momentum = momentum
@@ -437,6 +423,8 @@ class BatchNorm(Model):
 			self.register_parameter('running_var', None)
 			self.register_parameter('num_batches_tracked', None)
 		self.reset_parameters()
+		eps = self.get_flag('bn_eps')
+		self.eps = 2e-5 if eps is None else eps 
 
 	def reset_running_stats(self):
 		if self.track_running_stats:
@@ -451,7 +439,6 @@ class BatchNorm(Model):
 			init.zeros_(self.bias)
 
 	def forward(self, input):
-		global record_params
 		if self.momentum is None:
 			exponential_average_factor = 0.0
 		else:
@@ -470,15 +457,6 @@ class BatchNorm(Model):
 			input, self.running_mean, self.running_var, self.weight, self.bias,
 			self.training or not self.track_running_stats,
 			exponential_average_factor, self.eps)
-		if hasattr(self, '_record'):
-			if self._record:
-				res = {}
-				for p in self.named_parameters():
-					res[p[0]] = p[1]
-				for p in self.named_buffers():
-					res[p[0]] = p[1]
-				record_params.append(res)
-			self.un_record()
 		return result
 
 	def to_torch(self):
@@ -505,6 +483,7 @@ class BatchNorm(Model):
 	# 	super(_BatchNorm, self)._load_from_state_dict(
 	# 		state_dict, prefix, local_metadata, strict,
 	# 		missing_keys, unexpected_keys, error_msgs)
+
 
 class LayerNorm(Model):
 	def initialize(self, n_dims_to_keep, affine=True, eps=1e-5):
@@ -534,13 +513,6 @@ class LayerNorm(Model):
 		else:
 			return (x - mean) / (std + self.eps)
 
-def GlobalAvgPool2D(x):
-	x = x.mean(dim=(2,3), keepdim=True)
-	return x 
-
-class GlobalAvgPool2DLayer(Model):
-	def forward(self, x):
-		return GlobalAvgPool2D(x)
 
 class NNUpSample(Model):
 	def initialize(self, scale):
@@ -565,6 +537,7 @@ class NNUpSample(Model):
 		w = self.weight
 		return F.conv_transpose2d(x, w, self.bias, self.scale, 0, 0, self.inchannel, 1)
 
+
 def activation(x, act, **kwargs):
 	if act==-1:
 		return x
@@ -581,6 +554,7 @@ def activation(x, act, **kwargs):
 	elif act==10:
 		return F.gelu(x)
 
+
 class Activation(Model):
 	def initialize(self, act):
 		self.act = act 
@@ -588,11 +562,13 @@ class Activation(Model):
 			self.act = torch.nn.PReLU(num_parameters=outchn)  # this line is buggy
 		elif act==9:
 			self.act = torch.nn.PReLU(num_parameters=1)
+
 	def forward(self, x):
 		if self.act==8 or self.act==9:
 			return self.act(x)
 		else:
 			return activation(x, self.act)
+
 
 class graphConvLayer(Model):
 	def initialize(self, outsize, usebias=True, norm=True):
@@ -643,10 +619,12 @@ class graphConvLayer(Model):
 		res = F.linear(res, self.weight, self.bias)
 		return res 
 	
+
 class BilinearUpSample(Model):
 	def initialize(self, factor):
 		self.factor = factor
 		self.pad0 = factor//2 * 3 + factor%2
+
 	def build(self, *inputs):
 		inp = inputs[0]
 		self.inchn = inp.shape[1]
@@ -656,6 +634,7 @@ class BilinearUpSample(Model):
 		k = k[None, ...]
 		k = np.repeat(k, self.inchn, axis=0)
 		self.weight = Parameter(torch.from_numpy(k), requires_grad=False)
+
 	def upsample_kernel(self,size):
 		factor = (size +1)//2
 		if size%2==1:
@@ -665,14 +644,18 @@ class BilinearUpSample(Model):
 		og = np.ogrid[:size, :size]
 		k = (1 - abs(og[0]-center)/factor) * (1-abs(og[1]-center)/factor)
 		return np.float32(k)
+
 	def forward(self, x):
 		x = F.pad(x, (1,1,1,1), 'replicate')
 		x = F.conv_transpose2d(x, self.weight, None, self.factor, self.pad0, 0, self.inchn, 1)
 		return x 
+
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
 		pass
+
 	def _save_to_state_dict(self, destination, prefix, keep_vars):
 		pass
+
 
 class DeformConv2D(Model):
 	def initialize(self, size, outchn, stride=1, pad='SAME_LEFT', dilation_rate=1, usebias=True):
@@ -689,7 +672,6 @@ class DeformConv2D(Model):
 		self.inchannel = inchannel
 		# parse args
 		if isinstance(self.size,list):
-			# self.size = [self.size[0],self.size[1],inchannel,self.outchn]
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
@@ -704,7 +686,6 @@ class DeformConv2D(Model):
 
 	def build(self, *inputs):
 		inp = inputs[0]
-		# self.inchannel = inp
 		self._parse_args(inp.shape)
 		self.weight = Parameter(torch.Tensor(*self.size))
 		if self.usebias:

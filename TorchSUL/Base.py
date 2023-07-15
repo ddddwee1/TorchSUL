@@ -2,18 +2,18 @@ import os
 import torch 
 import torch.nn as nn 
 import functools
+from . import Config 
 
 class Model(nn.Module):
 	def __init__(self, *args, **kwargs):
 		super(Model, self).__init__()
-		self._record = False
-		self._merge_bn = False
 		self._quant_calibrating = False
 		self._quant_calibrated = False
 		self._quant = False
-		self.is_built = False
+		self._is_built = False
 		self._model_flags = {}
 		self.initialize(*args, **kwargs)
+		self.cfg = None 
 
 	def initialize(self, *args, **kwargs):
 		pass 
@@ -23,16 +23,16 @@ class Model(nn.Module):
 			self.start_quant()
 		for k in self._model_flags:
 			self.set_flag(k, self._model_flags[k])
+		self.setup_cfg()
 			
 	def build(self, *inputs, **kwargs):
-		#self._set_status()
 		pass
 
 	def build_forward(self, *inputs, **kwargs):
 		return self.forward(*inputs, **kwargs)
 
 	def __call__(self, *input, **kwargs):
-		if not self.is_built:
+		if not self._is_built:
 			self.build(*input)
 			self._set_status()
 		for hook in self._forward_pre_hooks.values():
@@ -44,7 +44,7 @@ class Model(nn.Module):
 		if torch._C._get_tracing_state():
 			result = self._slow_forward(*input, **kwargs)
 		else:
-			if not self.is_built:
+			if not self._is_built:
 				result = self.build_forward(*input, **kwargs)
 				self._set_status()
 			else:
@@ -66,23 +66,18 @@ class Model(nn.Module):
 					wrapper = functools.partial(hook, self)
 					functools.update_wrapper(wrapper, hook)
 					grad_fn.register_hook(wrapper)
-		self.is_built = True
+		self._is_built = True
 		return result
 
-	def record(self):
-		def set_record_flag(obj):
-			obj._record = True
-		self.apply(set_record_flag)
+	def load_config(self, config_file):
+		self.cfg = Config.load_yaml(config_file)
+		self.setup_cfg()
 
-	def un_record(self):
-		def unset_record_flag(obj):
-			obj._record = False
-		self.apply(unset_record_flag)
-
-	def merge_bn(self):
-		def set_merge_bn(obj):
-			obj._merge_bn = True 
-		self.apply(set_merge_bn)
+	def setup_cfg(self):
+		def set_cfg(obj):
+			if hasattr(obj, 'cfg'):
+				obj.cfg = self.cfg 
+		self.apply(set_cfg)
 
 	def set_flag(self, k, v):
 		def set_model_flag(obj):
@@ -94,14 +89,13 @@ class Model(nn.Module):
 		return self._model_flags.get(k, None)
 
 	def bn_eps(self, value):
+		print('WARNING: bn_eps function is deprecated, as it will influence other layers which has "eps" attribute')
 		def set_eps(obj):
 			obj.eps = value
 		self.apply(set_eps)
 
 	def start_calibrate(self):
 		def set_calibarte(obj):
-			# if hasattr(obj, '_quant'):
-			# 	print(type(obj))
 			if hasattr(obj, '_quant') and obj._quant:
 				obj._quant_calibrating = True
 		self.apply(set_calibarte)
@@ -135,5 +129,5 @@ class Model(nn.Module):
 		self._load_from_state_dict2(state_dict, prefix)
 
 	def _load_from_state_dict2(self, state_dict, prefix):
-		# conveinient method. Omit infrequent arguments
+		# Conveinient method. Omit infrequent arguments
 		pass 

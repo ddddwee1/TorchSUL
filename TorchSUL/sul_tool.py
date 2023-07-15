@@ -1,33 +1,41 @@
 import cv2
-import numpy as np 
 import os 
-import time 
-import progressbar
+from tqdm import tqdm
 
-def extract_frames(fname,prefix,skip=1):
-	print('Extracting %s'%fname)
-	t1 = time.time()
+def extract_frames(fname, output_dir, ext='jpg', skip=1, frame_format='frame_%08d', return_images=False):
+	def make_iterable(cap):
+		while 1:
+			ret, frame = cap.read()
+			if ret:
+				yield ret, frame
+			else:
+				return ret, frame
+	
+	assert isinstance(output_dir, str), 'output_dir must be string'
+	assert isinstance(fname, str), 'file name must be string'
+	assert ext.lower() in ['jpg', 'jpeg', 'png'], "extension must be one of ['jpg', 'jpeg', 'png']"
+
+	print(f'Extracting {fname}\tOutput_dir:{output_dir}')
+	os.makedirs(output_dir, exist_ok=True)
 	cap = cv2.VideoCapture(fname)
 	framenum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
 	cnt = 0
 	images = []
-	with progressbar.ProgressBar(max_value=framenum) as bar:
-		while cap.isOpened():
-			ret, frame = cap.read()
-			if not ret:
-				break
-			if cnt%skip==0:
-				if prefix is None:
-					images.append(frame)
-				else:
-					imgname = prefix+'_%08d.jpg'%cnt
-					if not os.path.exists(imgname):
-						cv2.imwrite(imgname, frame)
-			bar.update(cnt)
-			cnt += 1
-	t2 = time.time()
-	print('Extraction finished. Time elapsed:', t2-t1)
-	return images
+	for ret, frame in tqdm(make_iterable(cap), total=framenum):
+		if not ret:
+			break
+		if cnt%skip==0:
+			if return_images:
+				images.append(frame)
+			else:
+				imgname = os.path.join(output_dir, frame_format%cnt + '.' + ext)
+				cv2.imwrite(imgname, frame)
+		cnt += 1 
+
+	print('Extraction finished.')
+	if return_images:
+		return images
 
 class video_saver():
 	def __init__(self,name,size, frame_rate=15.0):
@@ -39,15 +47,10 @@ class video_saver():
 	def finish(self):
 		self.vidwriter.release()
 
-def computeIOU(box1, box2):
-	x1, y1, x2, y2 = box1
-	x3, y3, x4, y4 = box2 
-	dx = max(0, min(x2,x4) - max(x1,x3))
-	dy = max(0, min(y2,y4) - max(y1,y3))
-	inter = dx*dy 
-	union = (x4 - x3) * (y4 - y3) + (x2 - x1) * (y2 - y1) - inter
-	iou = inter / (union + 1)
-	return iou 
+def check_frame_num(fname):
+	video = cv2.VideoCapture(fname)
+	framenum = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+	return framenum
 
 def check_fps(fname):
 	video = cv2.VideoCapture(fname);

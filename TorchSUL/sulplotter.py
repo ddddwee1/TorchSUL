@@ -10,7 +10,6 @@ class Plotter3D():
 	def __init__(self, usebuffer=False, elev=None, azim=None, axis='on', axis_tick='on', no_margin=False):
 		fig = plt.figure(figsize=(6,5))
 		self.ax = fig.add_subplot(111, projection='3d')
-		# self.ax = custom_Axes3D(fig)
 		self.axis_tick = axis_tick
 		self.axis = axis 
 
@@ -56,15 +55,12 @@ class Plotter3D():
 			self.ax.set_zticklabels([])
 		if self.axis=='off':
 			self.ax.axis('off')
-		# self.ax.zaxis.line.set_lw(0.)
 		
 	def plot(self, xs,ys,zs, lims=None, **kwargs):
 		if lims is not None:
 			self.ax.set_xlim(lims[0])
 			self.ax.set_ylim(lims[1])
 			self.ax.set_zlim(lims[2])
-
-		# self.ax.plot(xs, ys, zs, **kwargs)
 
 		if (len(self.lines)==0) or (not self.usebuffer):
 			a = self.ax.plot(xs, ys, zs, **kwargs)
@@ -76,11 +72,6 @@ class Plotter3D():
 			self.line_pos += 1
 		
 	def update(self, require_img=False):
-		# slowest 
-		# plt.pause(0.0001)
-		# faster
-		# self.fig.canvas.draw()
-		# much faster
 		try:
 			self.ax.set_proj_type('persp')
 			self.ax.draw_artist(self.ax.patch)
@@ -104,6 +95,7 @@ class Plotter3D():
 
 		if require_img:
 			return image
+
 
 class Surface3D():
 	def __init__(self, elev=None, azim=None, axis='on', axis_tick='on'):
@@ -153,6 +145,7 @@ class Surface3D():
 		res = griddata(coord, values, (X_target, Y_target), method='cubic')
 		return res 
 
+
 class Plotter2D():
 	def __init__(self, usebuffer=False, elev=None, azim=None, axis='on', axis_tick='on', no_margin=False):
 		fig = plt.figure()
@@ -196,11 +189,6 @@ class Plotter2D():
 			self.line_pos += 1
 		
 	def update(self, require_img=False):
-		# slowest 
-		# plt.pause(0.0001)
-		# faster
-		# self.fig.canvas.draw()
-		# much faster
 		try:
 			self.ax.draw_artist(self.ax.patch)
 			for line in self.lines:
@@ -226,97 +214,6 @@ class Plotter2D():
 	def imshow(self, img, **kwargs):
 		self.ax.imshow(img, **kwargs)
 
-class LossPlotter():
-	def __init__(self, loss_file, skip_first=False, splitter='\t'):
-		fig = plt.figure()
-		self.ax = fig.add_subplot(111)
-		self.losses = []
-		f = open(loss_file)
-		if skip_first:
-			f.readline()
-		for i in f:
-			i = i.strip()
-			buff = i.split(splitter)
-			buff = [float(_) for _ in buff]
-			self.losses.append(buff)
-		self.losses = list(zip(*self.losses))
-		self.losses = [np.array(_) for _ in self.losses]
-
-	def apply_ema(self, ignore_index=0):
-		def ema(arr, alpha=0.05):
-			for i in range(len(arr)-1):
-				arr[i+1] = alpha * arr[i+1] + (1 - alpha) * arr[i]
-
-		for i in range(ignore_index, len(self.losses)):
-			ema(self.losses[i])
-
-	def plot(self, ignore_index=0, labels=None, lims=None, iteration_interval=1):
-		if lims is not None:
-			self.ax.set_xlim(lims[0])
-			self.ax.set_ylim(lims[1])
-		x = np.float32(list(range(len(self.losses[0])))) * iteration_interval
-		data = self.losses[ignore_index:]
-		if labels is None:
-			for d in data:
-				self.ax.plot(x, d)
-		else:
-			for d,lb in zip(data,labels):
-				self.ax.plot(x, d, label=lb)
-
-	def set_title(self, title):
-		self.ax.title(title)
-	def set_xylabel(self, label):
-		self.ax.set_xlabel(label[0])
-		self.ax.set_ylabel(label[1])
-	def set_legend(self, location):
-		self.ax.legend(loc=location)
-	def show(self, ion=True):
-		if ion:
-			plt.ion()
-		plt.show()
-
-class LossPlotterJson():
-	def __init__(self, loss_file, keys, alpha=0.1, scales=None):
-		fig = plt.figure()
-		self.ax = fig.add_subplot(111)
-		dt = json.load(open(loss_file))
-		self.losses = [dt[k] for k in keys]
-		self.losses = [[_[1] for _ in i] for i in self.losses]
-		self.keys = keys
-		self.alpha = alpha
-		if scales is None:
-			self.scales = [1 for _ in range(len(losses))]
-		else:
-			self.scales = scales
-
-	def apply_ema(self, ignore_index=0):
-		def ema(arr):
-			alpha = self.alpha
-			for i in range(len(arr)-1):
-				arr[i+1] = alpha * arr[i+1] + (1 - alpha) * arr[i]
-
-		for i in range(ignore_index, len(self.losses)):
-			ema(self.losses[i])
-
-	def plot(self):
-		x = np.float32(list(range(len(self.losses[0]))))
-		for d,lb,s in zip(self.losses, self.keys, self.scales):
-			d = np.float32(d)
-			d = d * s 
-			self.ax.plot(x, d, label=lb)
-
-	def set_title(self, title):
-		self.ax.title(title)
-
-	def set_xylabel(self, label):
-		self.ax.set_xlabel(label[0])
-		self.ax.set_ylabel(label[1])
-	def set_legend(self, location):
-		self.ax.legend(loc=location)
-	def show(self, ion=False):
-		if ion:
-			plt.ion()
-		plt.show()
 
 class FilterPlotter():
 	def __init__(self):
