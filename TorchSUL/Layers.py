@@ -311,6 +311,17 @@ class fclayer(Model):
 			self.register_parameter('bias', None)
 		self.reset_params()
 
+		if self._quant:
+			bit_type = self.get_flag('QActBit')
+			if bit_type is None:
+				bit_type = 'int8'
+			obs_type = self.get_flag('QActObserver')
+			if obs_type is None:
+				obs_type = 'minmax'
+			self.input_quantizer = QQuantizers['uniform'](zero_offset=False, bit_type=bit_type, observer=obs_type)
+			self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
+
+
 	def reset_params(self):
 		init.normal_(self.weight, std=0.001)
 		if self.bias is not None:
@@ -325,6 +336,10 @@ class fclayer(Model):
 			weight = self.weight / wnorm
 		else:
 			weight = self.weight
+
+		if self._quant:
+			x = self.input_quantizer(x).contiguous()
+			weight = self.w_quantizer(weight).contiguous()
 		return F.linear(x, weight, self.bias)
 
 	def to_torch(self):

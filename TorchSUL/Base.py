@@ -29,6 +29,7 @@ class Model(nn.Module):
 		pass
 
 	def build_forward(self, *inputs, **kwargs):
+		# build_forward is used to do value intializations etc.
 		return self.forward(*inputs, **kwargs)
 
 	def __call__(self, *input, **kwargs):
@@ -125,9 +126,9 @@ class Model(nn.Module):
 			torch.save(out, './layer_dumps/%s.pth'%name.replace('/','_'))
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
-		super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
 		self._load_from_state_dict2(state_dict, prefix)
-
+		super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
+		
 	def _load_from_state_dict2(self, state_dict, prefix):
 		# Conveinient method. Omit infrequent arguments
 		pass 

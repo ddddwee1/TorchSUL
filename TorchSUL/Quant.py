@@ -33,6 +33,7 @@ class QATFunc(Function):
 	@staticmethod
 	@once_differentiable
 	def backward(ctx, out_grad):
+		out_grad = out_grad.contiguous()
 		x, x1, scale, zero_point = ctx.saved_tensors
 
 		# compute ds 
@@ -75,7 +76,7 @@ class QATFunc(Function):
 			ds = ds.sum()
 			db = db.sum()
 
-		return dx, ds, db, None, None, None, None, None
+		return dx.contiguous(), ds.contiguous(), db.contiguous(), None, None, None, None, None
 
 	@staticmethod
 	def symbolic(g, x, scale, zero_point, Qn, Qp, zero_offset=False, mode='layer_wise', dim=-1):
@@ -117,13 +118,13 @@ class PercentileObserver(Model):
 		self.percentile = 0.99999
 
 	def build(self, x):
-		if len(x.shape)==4:
-			# b,c,h,w
-			self.dim = -3
-			if self.is_weight:
-				self.dim = -4
+		if self.is_weight:
+			self.dim = 0
 		else:
-			self.dim = -1
+			if len(x.shape)==4:
+				self.dim = 1 
+			else:
+				self.dim = -1
 
 	def observe(self, x):
 		if self.mode == 'channel_wise':
@@ -190,13 +191,13 @@ class MinMaxObserver(Model):
 		self.zero_point = None 
 
 	def build(self, x):
-		if len(x.shape)==4:
-			# b,c,h,w
-			self.dim = -3
-			if self.is_weight:
-				self.dim = -4
+		if self.is_weight:
+			self.dim = 0
 		else:
-			self.dim = -1
+			if len(x.shape)==4:
+				self.dim = 1 
+			else:
+				self.dim = -1
 
 	def observe(self, x):
 		if self.mode == 'channel_wise':
@@ -263,13 +264,14 @@ class OmseObserver(Model):
 		self.zero_point = None 
 
 	def build(self, x):
-		if len(x.shape)==4:
-			# b,c,h,w
-			self.dim = -3
-			if self.is_weight:
-				self.dim = -4
+		# TODO: mannually fit dim?
+		if self.is_weight:
+			self.dim = 0
 		else:
-			self.dim = -1
+			if len(x.shape)==4:
+				self.dim = 1 
+			else:
+				self.dim = -1
 
 	def observe(self, x):
 		if self.mode == 'channel_wise':
@@ -366,13 +368,13 @@ class UniformQuantizer(Model):
 		self.zero_offset = zero_offset
 
 	def build(self, x):
-		if len(x.shape)==4:
-			if self.is_weight:
-				self.dim = -4
-			else:
-				self.dim = -3
+		if self.is_weight:
+			self.dim = 0
 		else:
-			self.dim = -1 
+			if len(x.shape)==4:
+				self.dim = 1 
+			else:
+				self.dim = -1
 
 	def quant_dequant(self, x):
 		if self.dim!=-1 and self.mode=='channel_wise':
@@ -386,6 +388,7 @@ class UniformQuantizer(Model):
 		return x 
 
 	def forward(self, x):
+		x = x.contiguous()
 		if self._quant_calibrating:
 			x = self.observer(x)
 		if self._quant and self._quant_calibrated:
@@ -396,8 +399,8 @@ class UniformQuantizer(Model):
 			if self.get_flag('dump_onnx'):
 				x = QATFunc.apply(x, self.observer.scale.data, self.observer.zero_point.data, self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
 			else:
-				x = QATFunc.apply(x, self.observer.scale, self.observer.zero_point, self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
-		return x 
+				x = QATFunc.apply(x, self.observer.scale.contiguous(), self.observer.zero_point.contiguous(), self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
+		return x.contiguous() 
 
 
 QQuantizers = {"uniform": UniformQuantizer}

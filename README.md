@@ -24,11 +24,18 @@ pip install --upgrade torchsul
 
 ## Patch Notes
 
+#### 2023-07-16:  Bugfixes 
+1. Now *M.Model.\_laod_from_state_dict2* can normally manipulate state dictionary of its child modules 
+2. Add quantization support for fc layers. 
+
+
 #### 2023-07-15:  Upgrade to 0.2.0. 
 1. This is acually a pruning of previous version, where many redundant and outdated modules/functions are removed. You may find some layers are not supported anymore because there should be a convenient pytorch equivalance to be used. 
 2. This package is reformed since version 0.2.0. The submodule "DataReader" and "sulio" are removed, and all codes which utilizes these submodules will *no longer be supported*. It is recommended to use pytorch's dataloader for reading data. 
 3. Add config module to handle configs from yaml files. One the one hand, it's easier to control experiments from outside; on the other hand, build-in configs will prettify the codes.
 4. Remove caffe conversion support in package as it's redundant. One can use external method to build caffe converter (e.g, forward hooks) to convert models. As an alternative, the caffe conversion codes (modified Models & layers.py) still remain in examples. 
+
+
 
 
 ## Projects 
