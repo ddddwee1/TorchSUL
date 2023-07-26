@@ -187,17 +187,45 @@ class ConvLayer(Model):
 			relu = nn.ReLU()
 			setattr(self, 'act', relu)
 
-	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
-		super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
-		if (self.get_flag('fc2conv')) and ((prefix + 'fc.weight') in state_dict):
-			w = state_dict.pop(prefix+'fc.weight').unsqueeze(-1).unsqueeze(-1)
-			state_dict[prefix+'conv.weight'] = w 
+	def _load_from_state_dict2(self, state_dict, prefix):
+		def _load_weight(k):
+			if not k in state_dict:
+				raise Exception('Cannot find weight in checkpoint for layer:', prefix)
+			return state_dict.pop(k)
+		def _load_bias(k):
 			if self.conv.usebias:
-				if prefix+'fc.bias' in state_dict:
-					b = state_dict.pop(prefix+'fc.bias')
-					state_dict[prefix+'conv.bias'] = b
+				try:
+					b = state_dict.pop(prefix+'conv.bias')
+				except:
+					raise Exception('Bias is set for layer', prefix, 'but not found in checkpoint. \nTry to set usebias=False to fix this problem')
 			else:
-				raise Exception('Bias not found for layer', prefix, '\nTry to set usebias=False to fix this problem')
+				b = None
+			return b 
+
+		# get names for params
+		if prefix+'conv.weight' in state_dict:
+			# normal load 
+			w = prefix + 'conv.weight'
+			b = prefix + 'conv.bias'
+		elif self.get_flag('fc2conv') and ((prefix+'fc.weight') in state_dict):
+			w = prefix + 'fc.weight'
+			b = prefix + 'fc.bias'
+		elif self.get_flag('from_torch'):
+			w = prefix + 'weight'
+			b = prefix + 'bias'
+		else:
+			raise Exception('Cannot find weight in checkpoint for layer:', prefix)
+
+		# laod weight and bias 
+		w = _load_weight(w)
+		b = _load_weight(b)
+		if self.get_flag('fc2conv') and len(w.shape)==2:
+			w = w.unsqueeze(-1).unsqueeze(-1)
+
+		# write processed params to state dict 
+		state_dict[prefix+'conv.weight'] = w 
+		if b is not None:
+			state_dict[prefix+'conv.bias'] = b
 
 
 class DeConvLayer(Model):
@@ -338,6 +366,21 @@ class Dense(Model):
 		if self.activation==PARAM_RELU:
 			relu = nn.ReLU()
 			setattr(self, 'act', relu)
+
+	def _load_from_state_dict2(self, state_dict, prefix):
+		if self.get_flag('from_torch'):
+			w = state_dict.pop(prefix + 'weight')
+			if self.fc.usebias:
+				try:
+					b = state_dict.pop(prefix + 'bias')
+				except:
+					raise Exception('Bias is set for layer', prefix, 'but not found in checkpoint. \nTry to set usebias=False to fix this problem')
+			else:
+				b = None
+
+			state_dict[prefix+'fc.weight'] = w
+			if b is not None: 
+				state_dict[prefix+'fc.bias'] = b
 
 
 class LSTMCell(Model):
