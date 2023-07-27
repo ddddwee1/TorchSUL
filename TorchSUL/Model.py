@@ -190,14 +190,14 @@ class ConvLayer(Model):
 	def _load_from_state_dict2(self, state_dict, prefix):
 		def _load_weight(k):
 			if not k in state_dict:
-				raise Exception('Cannot find weight in checkpoint for layer:', prefix)
+				raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), '\nCannot find weight in checkpoint for layer:', prefix)
 			return state_dict.pop(k)
 		def _load_bias(k):
 			if self.conv.usebias:
 				try:
-					b = state_dict.pop(prefix+'conv.bias')
+					b = state_dict.pop(k)
 				except:
-					raise Exception('Bias is set for layer', prefix, 'but not found in checkpoint. \nTry to set usebias=False to fix this problem')
+					raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), '\nBias is set for layer', prefix, 'but not found in checkpoint. \nTry to set usebias=False to fix this problem')
 			else:
 				b = None
 			return b 
@@ -218,7 +218,7 @@ class ConvLayer(Model):
 
 		# laod weight and bias 
 		w = _load_weight(w)
-		b = _load_weight(b)
+		b = _load_bias(b)
 		if self.get_flag('fc2conv') and len(w.shape)==2:
 			w = w.unsqueeze(-1).unsqueeze(-1)
 

@@ -80,7 +80,7 @@ class Model(nn.Module):
 				obj.cfg = self.cfg 
 		self.apply(set_cfg)
 
-	def set_flag(self, k, v):
+	def set_flag(self, k, v=True):
 		def set_model_flag(obj):
 			if hasattr(obj, '_model_flags'):
 				obj._model_flags[k] = v 
