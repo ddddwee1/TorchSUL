@@ -10,3 +10,4 @@ Default flags in model
 | 'fc2conv' | bool | Automatically load the fc layers' weight in state_dict to 1x1 conv layers |
 | 'save_tensor' | bool | Enable the function: Model.save_tensor |
 | 'conv_init_mode' | str | Use normal initializtion for conv layers with mean=0 and std=0.001 (available: ['normal', 'kaiming']) |
+| 'from_torch' | bool | Convert weights from standard pytorch to torchsul |
