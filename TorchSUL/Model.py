@@ -190,14 +190,14 @@ class ConvLayer(Model):
 	def _load_from_state_dict2(self, state_dict, prefix):
 		def _load_weight(k):
 			if not k in state_dict:
-				raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), '\nCannot find weight in checkpoint for layer:', prefix)
+				raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), 'Cannot find weight in checkpoint for layer:', prefix)
 			return state_dict.pop(k)
 		def _load_bias(k):
 			if self.conv.usebias:
 				try:
 					b = state_dict.pop(k)
 				except:
-					raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), '\nBias is set for layer', prefix, 'but not found in checkpoint. \nTry to set usebias=False to fix this problem')
+					raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), 'Bias is set for layer', prefix, 'but not found in checkpoint. Try to set usebias=False to fix this problem')
 			else:
 				b = None
 			return b 
@@ -374,7 +374,7 @@ class Dense(Model):
 				try:
 					b = state_dict.pop(prefix + 'bias')
 				except:
-					raise Exception('Bias is set for layer', prefix, 'but not found in checkpoint. \nTry to set usebias=False to fix this problem')
+					raise Exception('Bias is set for layer', prefix, 'but not found in checkpoint. Try to set usebias=False to fix this problem')
 			else:
 				b = None
 

@@ -26,7 +26,10 @@ class ConfigDict():
 		return res 
 
 	def __getattr__(self, key):
-		return self.dict[key]
+		if not key[0]=='_':
+			return self.dict[key]
+		else:
+			super().__getattr__(key)
 
 	def __str__(self):
 		return self.dict_str

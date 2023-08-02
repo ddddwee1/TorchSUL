@@ -126,7 +126,13 @@ class Model(nn.Module):
 			torch.save(out, './layer_dumps/%s.pth'%name.replace('/','_'))
 
 	def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
-		self._load_from_state_dict2(state_dict, prefix)
+		try:
+			self._load_from_state_dict2(state_dict, prefix)
+		except Exception as e:
+			if not self.get_flag('loose_load'):
+				raise e 
+			else:
+				pass
 		super()._load_from_state_dict(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs)
 		
 	def _load_from_state_dict2(self, state_dict, prefix):

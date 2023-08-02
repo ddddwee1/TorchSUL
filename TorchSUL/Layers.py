@@ -69,15 +69,22 @@ class conv2D(Model):
 	def reset_params(self):
 		if self.get_flag('conv_init_mode')=='normal':
 			init.normal_(self.weight, std=0.001)
-		else:
+		elif self.get_flag('conv_init_mode')=='resnet':
 			_resnet_normal(self.weight)
+		else:
+			init.kaiming_uniform_(self.weight, a=math.sqrt(5))
 		if self.bias is not None:
 			if self.get_flag('conv_init_mode')=='normal':
 				init.zeros_(self.bias)
-			else:
+			elif self.get_flag('conv_init_mode')=='resnet':
 				fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
 				bound = 1 / math.sqrt(fan_in)
 				init.uniform_(self.bias, -bound, bound)
+			else:
+				fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+				if fan_in != 0:
+					bound = 1 / math.sqrt(fan_in)
+					init.uniform_(self.bias, -bound, bound)
 
 	def forward(self, x):
 		weight = self.weight
@@ -323,9 +330,16 @@ class fclayer(Model):
 
 
 	def reset_params(self):
-		init.normal_(self.weight, std=0.001)
-		if self.bias is not None:
-			init.zeros_(self.bias)
+		if self.get_flag('fc_init_mode')=='normal':
+			init.normal_(self.weight, std=0.001)
+			if self.bias is not None:
+				init.zeros_(self.bias)
+		else:
+			init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+			if self.bias is not None:
+				fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+				bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+				init.uniform_(self.bias, -bound, bound)
 
 	def forward(self, x):
 		if self.norm:
