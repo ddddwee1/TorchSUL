@@ -24,6 +24,11 @@ pip install --upgrade torchsul
 
 ## Patch Notes
 
+#### 2023-08-05 (0.2.4)
+1. Add "loose_load" flag. Working similarly to the "strict=False"
+2. Fix a bug in sul config that would not support multi-processing
+3. Add more initialization options for conv and fc layers
+
 #### 2023-07-27 (0.2.2)
 1. Add support for loading standard pytorch state dict. Users can set "from_torch" flag to load from standard pytorch state dict.
 
