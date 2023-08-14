@@ -66,7 +66,5 @@ act1 = M.QAct(observer='percentile')
 
 ## Things to notice 
 
-1. Currently the calibration and fake quantization are only supported on CPU. 
-
-2. Convolution input quantizatinon is fixed at layer-wise, and weight quantization is fixed for symmetric quantization. I'm considering to make it controllable by setting layer flags in the future. 
+1. Convolution input quantizatinon is fixed at layer-wise, and weight quantization is fixed for symmetric quantization. I'm considering to make it controllable by setting layer flags in the future. 
 
