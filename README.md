@@ -2,6 +2,14 @@
 
 This package is created for better experience while using Pytorch. 
 
+## How to use
+
+[Quantization](https://github.com/ddddwee1/TorchSUL/blob/master/quant_instruction.md)
+
+[Model Flags](https://github.com/ddddwee1/TorchSUL/blob/master/FlagList.md)
+
+Quick start (WIP)
+
 ## Why making this
 
 1. For fun.
