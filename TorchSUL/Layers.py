@@ -125,7 +125,6 @@ class deconv2D(Model):
 				self.pad = (self.size + (self.dilation_rate-1) * ( self.size-1 ))//2 - (1 - self.size%2)
 				self.out_pad = self.stride - 1
 			self.size = [inchannel, self.outchn // self.gropus, self.size, self.size]
-			print(self.pad)
 		else:
 			raise Exception("Deconv kernel only supports int")
 
