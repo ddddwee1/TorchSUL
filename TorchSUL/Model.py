@@ -250,6 +250,41 @@ class DeConvLayer(Model):
 			x = L.activation(x, self.activation)
 		return x 
 
+	def _load_from_state_dict2(self, state_dict, prefix):
+		def _load_weight(k):
+			if not k in state_dict:
+				raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), 'Cannot find weight in checkpoint for layer:', prefix)
+			return state_dict.pop(k)
+		def _load_bias(k):
+			if self.conv.usebias:
+				try:
+					b = state_dict.pop(k)
+				except:
+					raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), 'Bias is set for layer', prefix, 'but not found in checkpoint. Try to set usebias=False to fix this problem')
+			else:
+				b = None
+			return b 
+
+		# get names for params
+		if prefix+'conv.weight' in state_dict:
+			# normal load 
+			w = prefix + 'conv.weight'
+			b = prefix + 'conv.bias'
+		elif self.get_flag('from_torch'):
+			w = prefix + 'weight'
+			b = prefix + 'bias'
+		else:
+			raise Exception('Cannot find weight in checkpoint for layer:', prefix)
+
+		# laod weight and bias 
+		w = _load_weight(w)
+		b = _load_bias(b)
+
+		# write processed params to state dict 
+		state_dict[prefix+'conv.weight'] = w 
+		if b is not None:
+			state_dict[prefix+'conv.bias'] = b
+
 
 class DWConvLayer(Model):
 	def initialize(self, size, multiplier, stride=1, pad='SAME_LEFT', dilation_rate=1, activation=-1, batch_norm=False, affine=True, usebias=True):

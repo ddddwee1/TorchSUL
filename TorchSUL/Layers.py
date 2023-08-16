@@ -125,6 +125,7 @@ class deconv2D(Model):
 				self.pad = (self.size + (self.dilation_rate-1) * ( self.size-1 ))//2 - (1 - self.size%2)
 				self.out_pad = self.stride - 1
 			self.size = [inchannel, self.outchn // self.gropus, self.size, self.size]
+			print(self.pad)
 		else:
 			raise Exception("Deconv kernel only supports int")
 
@@ -138,6 +139,16 @@ class deconv2D(Model):
 			self.register_parameter('bias', None)
 		self.reset_params()
 
+		if self._quant:
+			bit_type = self.get_flag('QActBit')
+			if bit_type is None:
+				bit_type = 'int8'
+			obs_type = self.get_flag('QActObserver')
+			if obs_type is None:
+				obs_type = 'minmax'
+			self.input_quantizer = QQuantizers['uniform'](zero_offset=False, bit_type=bit_type, observer=obs_type)
+			self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
+
 	def reset_params(self):
 		_resnet_normal(self.weight)
 		if self.bias is not None:
@@ -147,7 +158,11 @@ class deconv2D(Model):
 
 	def forward(self, x):
 		inh, inw = x.shape[2], x.shape[3]
-		x = F.conv_transpose2d(x, self.weight, self.bias, self.stride, self.pad, self.out_pad, self.gropus, self.dilation_rate)
+		weight = self.weight
+		if self._quant:
+			x = self.input_quantizer(x)
+			weight = self.w_quantizer(weight)
+		x = F.conv_transpose2d(x, weight, self.bias, self.stride, self.pad, self.out_pad, self.gropus, self.dilation_rate)
 		outh, outw = x.shape[2], x.shape[3]
 		if self.padmethod=='SAME_LEFT':
 			if outh!=inh*self.stride or outw!=inw*self.stride:
