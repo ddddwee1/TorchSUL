@@ -28,7 +28,7 @@ for data in loader:
 model.end_calibrate()
 ```
 
-After that, your model will run in (fake) quantization mode. The parameters are saved just by calling: 
+After that, your model will run in quantization mode. The parameters are saved just by calling: 
 
 ```python
 M.Saver(model).save('./quant_model/quanted.pth')
