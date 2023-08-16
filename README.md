@@ -32,6 +32,9 @@ pip install --upgrade torchsul
 
 ## Patch Notes
 
+#### 2023-08-16 (0.2.5)
+1. Add quant support for deconv layer
+
 #### 2023-08-05 (0.2.4)
 1. Add "loose_load" flag. Working similarly to the "strict=False"
 2. Fix a bug in sul config that would not support multi-processing
