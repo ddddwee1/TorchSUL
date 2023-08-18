@@ -60,17 +60,48 @@ def to_standard_torch(model, inplace=True):
 
 def inspect_quant_params(module, result_dict=dict(), prefix=''):
 	if isinstance(module, QAct):
-		zero_point = module.quantizer.observer.zero_point
-		scale = module.quantizer.observer.scale 
-		result_dict[prefix] = [scale, zero_point.round()]
+		try:
+			zero_point = module.quantizer.observer.zero_point
+			scale = module.quantizer.observer.scale 
+			result_dict[prefix] = [scale, zero_point.round()]
+		except:
+			print('WARNING: Skipping... Quant params of layer:', prefix, 'cannot be properly retrieved. Maybe this layer is never called in calibration.')
 		return result_dict
 	if isinstance(module, ConvLayer):
-		scale = module.conv.input_quantizer.observer.scale
-		zero_point = module.conv.input_quantizer.observer.zero_point
-		result_dict[prefix+'/conv/Conv__input'] = [scale, zero_point.round()]
-		scale = module.conv.w_quantizer.observer.scale
-		zero_point = module.conv.w_quantizer.observer.zero_point
-		result_dict[prefix+'/conv/Conv__weight'] = [scale, zero_point.round()]
+		try:
+			if hasattr(module.conv, 'input_quantizer'):
+				scale = module.conv.input_quantizer.observer.scale
+				zero_point = module.conv.input_quantizer.observer.zero_point
+				result_dict[prefix+'/conv/Conv__input'] = [scale, zero_point.round()]
+				scale = module.conv.w_quantizer.observer.scale
+				zero_point = module.conv.w_quantizer.observer.zero_point
+				result_dict[prefix+'/conv/Conv__weight'] = [scale, zero_point.round()]
+		except:
+			print('WARNING: Skipping... Quant params of layer:', prefix, 'cannot be properly retrieved. Maybe this layer is never called in calibration.')
+		return result_dict
+	if isinstance(module, DeConvLayer):
+		try:
+			if hasattr(module.conv, 'input_quantizer'):
+				scale = module.conv.input_quantizer.observer.scale
+				zero_point = module.conv.input_quantizer.observer.zero_point
+				result_dict[prefix+'/conv/DeConv__input'] = [scale, zero_point.round()]
+				scale = module.conv.w_quantizer.observer.scale
+				zero_point = module.conv.w_quantizer.observer.zero_point
+				result_dict[prefix+'/conv/DeConv__weight'] = [scale, zero_point.round()]
+		except:
+			print('WARNING: Skipping... Quant params of layer:', prefix, 'cannot be properly retrieved. Maybe this layer is never called in calibration.')
+		return result_dict
+	if isinstance(module, Dense):
+		try:
+			if hasattr(module.fc, 'input_quantizer'):
+				scale = module.fc.input_quantizer.observer.scale
+				zero_point = module.fc.input_quantizer.observer.zero_point
+				result_dict[prefix+'/fc/Dense__input'] = [scale, zero_point.round()]
+				scale = module.fc.w_quantizer.observer.scale
+				zero_point = module.fc.w_quantizer.observer.zero_point
+				result_dict[prefix+'/fc/Dense__weight'] = [scale, zero_point.round()]
+		except:
+			print('WARNING: Skipping... Quant params of layer:', prefix, 'cannot be properly retrieved. Maybe this layer is never called in calibration.')
 		return result_dict
 	if isinstance(module, nn.ModuleList):
 		for i in range(len(module)):
