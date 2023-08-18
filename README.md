@@ -32,6 +32,9 @@ pip install --upgrade torchsul
 
 ## Patch Notes
 
+#### 2023-08-18 (0.2.6)
+1. Non-existing quant params will no longer trigger Excpetions when inspecting, triggering warnings instead.
+
 #### 2023-08-16 (0.2.5)
 1. Add quant support for deconv layer
 
