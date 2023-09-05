@@ -229,9 +229,14 @@ class MinMaxObserver(Model):
 
 	def _finish_calibrate(self):
 		if self.scale is None:
-			s,z = self.get_quant_params()
-			self.scale = Parameter(s)
-			self.zero_point = Parameter(z)
+			try:
+				s,z = self.get_quant_params()
+				self.scale = Parameter(s)
+				self.zero_point = Parameter(z)
+			except:
+				self.scale = torch.tensor(255.0)
+				self.zero_point = torch.tensor(0.0)
+				print('Layer is not passed through')
 
 	def forward(self, x):
 		if self._quant_calibrating:

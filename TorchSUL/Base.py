@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn 
 import functools
 from . import Config 
+from loguru import logger 
 
 class Model(nn.Module):
 	def __init__(self, *args, **kwargs):
@@ -14,6 +15,7 @@ class Model(nn.Module):
 		self._model_flags = {}
 		self.initialize(*args, **kwargs)
 		self.cfg = None 
+		self._build_forward_warning_ = True
 
 	def initialize(self, *args, **kwargs):
 		pass 
@@ -30,7 +32,11 @@ class Model(nn.Module):
 
 	def build_forward(self, *inputs, **kwargs):
 		# build_forward is used to do value intializations etc.
+		self._build_forward_warning_ = False
 		return self.forward(*inputs, **kwargs)
+
+	def init_params(self, *inputs, **kwargs):
+		pass 
 
 	def __call__(self, *input, **kwargs):
 		if not self._is_built:
@@ -47,9 +53,14 @@ class Model(nn.Module):
 		else:
 			if not self._is_built:
 				result = self.build_forward(*input, **kwargs)
+				if self._build_forward_warning_:
+					logger.warning('Method build_forward is deprecated and will be removed in future versions.')
+					logger.warning('For parameter initialization purpose, please use "init_params" method')
 				self._set_status()
 			else:
 				result = self.forward(*input, **kwargs)
+			if not self._is_built:
+				self.init_params(*input, **kwargs)
 		for hook in self._forward_hooks.values():
 			hook_result = hook(self, input, result)
 			if hook_result is not None:
