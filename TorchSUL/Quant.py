@@ -398,8 +398,7 @@ class UniformQuantizer(Model):
 			x = self.observer(x)
 		if self._quant and self._quant_calibrated:
 			if self.observer.scale.device!=x.device:
-				self.observer.scale = self.observer.scale.to(x.device)
-				self.observer.zero_point = self.observer.zero_point.to(x.device)
+				self.observer.to(x.device)
 			# x = self.quant_dequant(x)
 			if self.get_flag('dump_onnx'):
 				x = QATFunc.apply(x, self.observer.scale.data, self.observer.zero_point.data, self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
