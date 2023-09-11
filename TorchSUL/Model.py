@@ -9,7 +9,7 @@ import os
 import copy
 import inspect
 from distutils.version import LooseVersion
-
+from loguru import logger
 
 Model = Base.Model
 activation = L.activation
@@ -65,7 +65,7 @@ def inspect_quant_params(module, result_dict=dict(), prefix=''):
 			scale = module.quantizer.observer.scale 
 			result_dict[prefix] = [scale, zero_point.round()]
 		except:
-			print('WARNING: Skipping... Quant params of layer:', prefix, 'cannot be properly retrieved. Maybe this layer is never called in calibration.')
+			logger.warning(f'Quant params of layer: {prefix} cannot be properly retrieved. Maybe this layer is never called in calibration.')
 		return result_dict
 	if isinstance(module, ConvLayer):
 		try:
@@ -77,7 +77,7 @@ def inspect_quant_params(module, result_dict=dict(), prefix=''):
 				zero_point = module.conv.w_quantizer.observer.zero_point
 				result_dict[prefix+'/conv/Conv__weight'] = [scale, zero_point.round()]
 		except:
-			print('WARNING: Skipping... Quant params of layer:', prefix, 'cannot be properly retrieved. Maybe this layer is never called in calibration.')
+			logger.warning(f'Quant params of layer: {prefix} cannot be properly retrieved. Maybe this layer is never called in calibration.')
 		return result_dict
 	if isinstance(module, DeConvLayer):
 		try:
@@ -89,7 +89,7 @@ def inspect_quant_params(module, result_dict=dict(), prefix=''):
 				zero_point = module.conv.w_quantizer.observer.zero_point
 				result_dict[prefix+'/conv/DeConv__weight'] = [scale, zero_point.round()]
 		except:
-			print('WARNING: Skipping... Quant params of layer:', prefix, 'cannot be properly retrieved. Maybe this layer is never called in calibration.')
+			logger.warning(f'Quant params of layer: {prefix} cannot be properly retrieved. Maybe this layer is never called in calibration.')
 		return result_dict
 	if isinstance(module, Dense):
 		try:
@@ -101,7 +101,7 @@ def inspect_quant_params(module, result_dict=dict(), prefix=''):
 				zero_point = module.fc.w_quantizer.observer.zero_point
 				result_dict[prefix+'/fc/Dense__weight'] = [scale, zero_point.round()]
 		except:
-			print('WARNING: Skipping... Quant params of layer:', prefix, 'cannot be properly retrieved. Maybe this layer is never called in calibration.')
+			logger.warning(f'Quant params of layer: {prefix} cannot be properly retrieved. Maybe this layer is never called in calibration.')
 		return result_dict
 	if isinstance(module, nn.ModuleList):
 		for i in range(len(module)):
@@ -119,11 +119,13 @@ class Saver():
 		self.model = module
 
 	def _get_checkpoint(self, path):
-		path = path.replace('\\','/')
-		ckpt = path + 'checkpoint'
+		path = path.replace('\\','/')  # for windows 
+		# ckpt = path + 'checkpoint'
+		ckpt = os.path.join(path, 'checkpoint')
 		if os.path.exists(ckpt):
 			fname = open(ckpt).readline().strip()
-			return path + fname
+			# return path + fname
+			return os.path.join(path, fname)
 		else:
 			return False
 
@@ -135,21 +137,21 @@ class Saver():
 		return d 
 
 	def restore(self, path, strict=True, exclude=None):
-		print('Trying to load from:',path)
+		logger.info('Trying to load from: %s'%path)
 		device = torch.device('cpu')
 		if path[-4:] == '.pth':
 			if not os.path.exists(path):
-				print('Path:',path, 'does not exsist.')
+				logger.warning('Path: %s does not exsist. No restoration will be performed.'%path)
 			elif isinstance(self.model, nn.DataParallel):
 				state_dict = torch.load(path, map_location=device)
 				state_dict = self._exclude(state_dict, exclude)
 				self.model.module.load_state_dict(state_dict, strict=strict)
-				print('Model loaded from:', path)
+				logger.info('Model loaded from: %s'%path)
 			else:
 				state_dict = torch.load(path, map_location=device)
 				state_dict = self._exclude(state_dict, exclude)
 				self.model.load_state_dict(state_dict, strict=strict)
-				print('Model loaded from:', path)
+				logger.info('Model loaded from: %s'%path)
 		else:
 			path = self._get_checkpoint(path)
 			if path:
@@ -161,9 +163,9 @@ class Saver():
 					state_dict = torch.load(path, map_location=device)
 					state_dict = self._exclude(state_dict, exclude)
 					self.model.load_state_dict(state_dict, strict=strict)
-				print('Model loaded from:', path)
+				logger.info('Model loaded from: %s'%path)
 			else:
-				print('No checkpoint found. No restoration will be performed.')
+				logger.warning('No checkpoint found. No restoration will be performed.')
 
 	def save(self, path):
 		# To make it compatible with older pytorch 
@@ -180,7 +182,7 @@ class Saver():
 				torch.save(self.model.state_dict(), path, _use_new_zipfile_serialization=False)
 			else:
 				torch.save(self.model.state_dict(), path)
-		print('Model saved to:',path)
+		logger.info('Model saved to: %s'%path)
 		ckpt = open(directory + '/checkpoint', 'w')
 		ckpt.write(os.path.basename(path))
 		ckpt.close()

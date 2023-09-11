@@ -32,8 +32,11 @@ pip install --upgrade torchsul
 
 ## Patch Notes
 
-#### 2023-09-05 (0.2.7)
-1. Now we deprecate the build_forward functions. Reason is that if we use this function for parameter initialization purpose, it will be more readable and user-friendly to use it after parameters are initialized (after forward function). Therefore, this functionality will be achieved by another post-forward function "init_params", and other functionalities would be achieved by "*if self._is_built*" statement during forward.
+#### 2023-09-11 (0.2.7)
+1. We deprecate the build_forward functions. Reason is that if we use this function for parameter initialization purpose, it will be more readable and user-friendly to use it after parameters are initialized (after forward function). Therefore, this functionality will be achieved by another post-forward function "init_params", and other functionalities would be achieved by "*if self._is_built*" statement during forward.
+2. Non-calibrated layers will be auto-omitted and skipped in forward loops.
+3. Switch from print to loguru, a simple but powerful logging package.
+4. Switch from tqdm to rich progress
 
 #### 2023-08-18 (0.2.6)
 1. Non-existing quant params will no longer trigger Exceptions when inspecting, triggering warnings instead.

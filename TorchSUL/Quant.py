@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.nn.parameter import Parameter
 from torch.autograd import Function 
 from torch.autograd.function import once_differentiable
+from loguru import logger 
 
 class QATFunc(Function):
 	# quant-aware training function 
@@ -40,7 +41,6 @@ class QATFunc(Function):
 		ds = x1.clone()
 		ds -= zero_point
 		idx = (x1>ctx.Qn) & (x1<ctx.Qp)
-		# print(idx.shape, scale.shape, ds[idx].shape, x.shape)
 		if ctx.mode=='channel_wise':
 			coef = torch.zeros_like(x)
 			coef[idx] += x[idx]
@@ -155,7 +155,9 @@ class PercentileObserver(Model):
 		return scale, zero_point
 
 	def _finish_calibrate(self):
-		if self.scale is None:
+		if (self.min_val is None) or (self.max_val is None):
+			logger.warning('This quant layer is not fed with any data and it will be omitted. Use M.inspect_quant_params to get specific layer name')
+		elif self.scale is None:
 			s,z = self.get_quant_params()
 			self.scale = Parameter(s)
 			self.zero_point = Parameter(z)
@@ -170,7 +172,7 @@ class PercentileObserver(Model):
 			self.scale = Parameter(state_dict[prefix + 'scale'])
 			self.zero_point = Parameter(state_dict[prefix + 'zero_point'])
 		else:
-			print('no scale for ', prefix)
+			logger.debug('Loading quant layer... no scale for layer ', prefix)
 
 	def _save_to_state_dict(self, destination, prefix, keep_vars):
 		if self._quant_calibrated:
@@ -228,15 +230,12 @@ class MinMaxObserver(Model):
 		return scale, zero_point
 
 	def _finish_calibrate(self):
-		if self.scale is None:
-			try:
-				s,z = self.get_quant_params()
-				self.scale = Parameter(s)
-				self.zero_point = Parameter(z)
-			except:
-				self.scale = torch.tensor(255.0)
-				self.zero_point = torch.tensor(0.0)
-				print('Layer is not passed through')
+		if (self.min_val is None) or (self.max_val is None):
+			logger.warning('This quant layer is not fed with any data and it will be omitted. Use M.inspect_quant_params to get specific layer name')
+		elif self.scale is None:
+			s,z = self.get_quant_params()
+			self.scale = Parameter(s)
+			self.zero_point = Parameter(z)
 
 	def forward(self, x):
 		if self._quant_calibrating:
@@ -248,7 +247,7 @@ class MinMaxObserver(Model):
 			self.scale = Parameter(state_dict[prefix + 'scale'])
 			self.zero_point = Parameter(state_dict[prefix + 'zero_point'])
 		else:
-			print('no scale for ', prefix)
+			logger.debug('Loading quant layer... no scale for layer %s'%prefix)
 
 	def _save_to_state_dict(self, destination, prefix, keep_vars):
 		if self._quant_calibrated:
@@ -307,7 +306,6 @@ class OmseObserver(Model):
 		zero_point = zero_point.cuda()
 		x_buffer = self.x_buffer.cuda()
 
-		# print(scale.shape, x_buffer.shape)
 		scale = scale * factor
 		x_buffer_q = x_buffer / scale + zero_point
 		x_buffer_q = x_buffer_q.round().clamp(self.bit_type.min_val, self.bit_type.max_val)
@@ -339,7 +337,9 @@ class OmseObserver(Model):
 		return scale_best, zero_point_best
 
 	def _finish_calibrate(self):
-		if self.scale is None:
+		if (self.min_val is None) or (self.max_val is None):
+			logger.warning('This quant layer is not fed with any data and it will be omitted. Use M.inspect_quant_params to get specific layer name')
+		elif self.scale is None:
 			s,z = self.get_quant_params()
 			self.scale = Parameter(s)
 			self.zero_point = Parameter(z)
@@ -354,7 +354,7 @@ class OmseObserver(Model):
 			self.scale = Parameter(state_dict[prefix + 'scale'])
 			self.zero_point = Parameter(state_dict[prefix + 'zero_point'])
 		else:
-			print('no scale for ', prefix)
+			logger.debug('Loading quant layer... no scale for layer ', prefix)
 
 	def _save_to_state_dict(self, destination, prefix, keep_vars):
 		if self._quant_calibrated:
@@ -396,7 +396,7 @@ class UniformQuantizer(Model):
 		x = x.contiguous()
 		if self._quant_calibrating:
 			x = self.observer(x)
-		if self._quant and self._quant_calibrated:
+		if self._quant and self._quant_calibrated and (self.observer.scale is not None):
 			if self.observer.scale.device!=x.device:
 				self.observer.to(x.device)
 			# x = self.quant_dequant(x)

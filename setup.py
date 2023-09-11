@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup_args = dict(
     name='TorchSUL',
-    version='0.2.6',
+    version='0.2.7',
     description='Simple but useful layers for Pytorch',
     packages=find_packages(),
     long_description=long_description,
@@ -19,6 +19,8 @@ setup_args = dict(
         'matplotlib',
         'pyyaml',
         'moviepy',
+        'loguru',
+        'rich',
     ]
 )
 

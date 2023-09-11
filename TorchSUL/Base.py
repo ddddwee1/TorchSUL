@@ -101,7 +101,7 @@ class Model(nn.Module):
 		return self._model_flags.get(k, None)
 
 	def bn_eps(self, value):
-		print('WARNING: bn_eps function is deprecated, as it will influence other layers which has "eps" attribute')
+		logger.warning('WARNING: bn_eps function is deprecated, as it will influence other layers which has "eps" attribute')
 		def set_eps(obj):
 			obj.eps = value
 		self.apply(set_eps)

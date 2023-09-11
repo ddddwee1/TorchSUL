@@ -1,6 +1,7 @@
 import cv2
 import os 
-from tqdm import tqdm
+from loguru import logger
+from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeRemainingColumn
 
 def extract_frames(fname, output_dir, ext='jpg', skip=1, frame_format='frame_%08d', return_images=False):
 	def make_iterable(cap):
@@ -15,25 +16,29 @@ def extract_frames(fname, output_dir, ext='jpg', skip=1, frame_format='frame_%08
 	assert isinstance(fname, str), 'file name must be string'
 	assert ext.lower() in ['jpg', 'jpeg', 'png'], "extension must be one of ['jpg', 'jpeg', 'png']"
 
-	print(f'Extracting {fname}\tOutput_dir:{output_dir}')
+	logger.info(f'Extracting {fname}\tOutput_dir:{output_dir}\tFormat:{frame_format}\tExtension:{ext}\tSkip:{skip}')
 	os.makedirs(output_dir, exist_ok=True)
 	cap = cv2.VideoCapture(fname)
 	framenum = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
 	cnt = 0
 	images = []
-	for ret, frame in tqdm(make_iterable(cap), total=framenum):
-		if not ret:
-			break
-		if cnt%skip==0:
-			if return_images:
-				images.append(frame)
-			else:
-				imgname = os.path.join(output_dir, frame_format%cnt + '.' + ext)
-				cv2.imwrite(imgname, frame)
-		cnt += 1 
+	with progress_bar() as prog:
+		task = prog.add_task(description='Extracting...', total=framenum)
+		while 1:
+			ret, frame = cap.read()
+			if not ret:
+				break
+			if cnt%skip==0:
+				if return_images:
+					images.append(frame)
+				else:
+					imgname = os.path.join(output_dir, frame_format%cnt + '.' + ext)
+					cv2.imwrite(imgname, frame)
+			cnt += 1 
+			prog.advance(task)
 
-	print('Extraction finished.')
+	logger.info('Extraction finished.')
 	if return_images:
 		return images
 
@@ -64,4 +69,8 @@ def combine_audio(vidname, audname, outname, fps=25):
 	audio_background = mpe.AudioFileClip(audname)
 	final_clip = my_clip.set_audio(audio_background)
 	final_clip.write_videofile(outname,fps=fps)
+
+def progress_bar(width=40):
+	prog = Progress(TextColumn('[progress.description]{task.description}'), BarColumn(finished_style='green', bar_width=width), MofNCompleteColumn(), TimeRemainingColumn())
+	return prog
 
