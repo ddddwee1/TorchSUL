@@ -33,29 +33,29 @@ pip install --upgrade torchsul
 ## Patch Notes
 
 #### 2023-09-11 (0.2.7)
-1. We deprecate the build_forward functions. Reason is that if we use this function for parameter initialization purpose, it will be more readable and user-friendly to use it after parameters are initialized (after forward function). Therefore, this functionality will be achieved by another post-forward function "init_params", and other functionalities would be achieved by "*if self._is_built*" statement during forward.
-2. Non-calibrated layers will be auto-omitted and skipped in forward loops.
-3. Switch from print to loguru, a simple but powerful logging package.
-4. Switch from tqdm to rich progress
+1. (Base) We deprecate the build_forward functions. Reason is that if we use this function for parameter initialization purpose, it will be more readable and user-friendly to use it after parameters are initialized (after forward function). Therefore, this functionality will be achieved by another post-forward function "init_params", and other functionalities would be achieved by "*if self._is_built*" statement during forward.
+2. (Quant) Non-calibrated layers will be auto-omitted and skipped in forward loops.
+3. (General) Switch from print to loguru, a simple but powerful logging package.
+4. (General) Switch from tqdm to rich progress
 
 #### 2023-08-18 (0.2.6)
-1. Non-existing quant params will no longer trigger Exceptions when inspecting, triggering warnings instead.
+1. (Quant) Non-existing quant params will no longer trigger Exceptions when inspecting, triggering warnings instead.
 
 #### 2023-08-16 (0.2.5)
-1. Add quant support for deconv layer
+1. (Layers) Add quant support for deconv layer
 
 #### 2023-08-05 (0.2.4)
-1. Add "loose_load" flag. Working similarly to the "strict=False"
-2. Fix a bug in sul config that would not support multi-processing
-3. Add more initialization options for conv and fc layers
+1. (Layers) Add "loose_load" flag. Working similarly to the "strict=False"
+2. (Config) Fix a bug in sul config that would not support multi-processing
+3. (Layers) Add more initialization options for conv and fc layers
 
 #### 2023-07-27 (0.2.2)
-1. Add support for loading standard pytorch state dict. Users can set "from_torch" flag to load from standard pytorch state dict.
+1. (Layers) Add support for loading standard pytorch state dict. Users can set "from_torch" flag to load from standard pytorch state dict.
 
 
 #### 2023-07-16:  Bugfixes (0.2.1)
-1. Now *M.Model.\_laod_from_state_dict2* can normally manipulate state dictionary of its child modules 
-2. Add quantization support for fc layers. 
+1. (Base) Now *M.Model.\_laod_from_state_dict2* can normally manipulate state dictionary of its child modules 
+2. (Layers) Add quantization support for fc layers. 
 
 
 #### 2023-07-15:  Upgrade to 0.2.0
