@@ -45,8 +45,8 @@ def extract_frames(fname, output_dir, ext='jpg', skip=1, frame_format='frame_%08
 class video_saver():
 	def __init__(self,name,size, frame_rate=15.0):
 		self.name = name
-		# fourcc = cv2.VideoWriter_fourcc(*'XVID')
-		fourcc = cv2.VideoWriter_fourcc(*'H264')
+		fourcc = cv2.VideoWriter_fourcc(*'XVID')
+		# fourcc = cv2.VideoWriter_fourcc(*'H264')
 		self.vidwriter = cv2.VideoWriter(name,fourcc,frame_rate,(size[1],size[0]))
 	def write(self,img):
 		self.vidwriter.write(img)

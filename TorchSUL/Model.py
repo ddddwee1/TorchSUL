@@ -436,6 +436,8 @@ class Dense(Model):
 			setattr(self, 'act', relu)
 
 	def _load_from_state_dict2(self, state_dict, prefix):
+		if prefix+'fc.weight' in state_dict:
+			return 
 		if self.get_flag('from_torch'):
 			w = state_dict.pop(prefix + 'weight')
 			if self.fc.usebias:

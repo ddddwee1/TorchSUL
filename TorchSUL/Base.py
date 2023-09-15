@@ -14,7 +14,6 @@ class Model(nn.Module):
 		self._is_built = False
 		self._model_flags = {}
 		self.initialize(*args, **kwargs)
-		self.cfg = None 
 		self._build_forward_warning_ = True
 
 	def initialize(self, *args, **kwargs):
@@ -25,7 +24,6 @@ class Model(nn.Module):
 			self.start_quant()
 		for k in self._model_flags:
 			self.set_flag(k, self._model_flags[k])
-		self.setup_cfg()
 			
 	def build(self, *inputs, **kwargs):
 		pass
@@ -80,16 +78,6 @@ class Model(nn.Module):
 					grad_fn.register_hook(wrapper)
 		self._is_built = True
 		return result
-
-	def load_config(self, config_file):
-		self.cfg = Config.load_yaml(config_file)
-		self.setup_cfg()
-
-	def setup_cfg(self):
-		def set_cfg(obj):
-			if hasattr(obj, 'cfg'):
-				obj.cfg = self.cfg 
-		self.apply(set_cfg)
 
 	def set_flag(self, k, v=True):
 		def set_model_flag(obj):
