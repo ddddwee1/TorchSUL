@@ -13,7 +13,7 @@ model = MyModel()
 model.eval()
 model.start_quant()
 x = torch.zeros(1,3,224,224)
-model(x)   # initialize the model with dumb input 
+model(x)   # initialize the model with dummy input 
 
 ...
 
