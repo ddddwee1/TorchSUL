@@ -37,7 +37,7 @@ class conv2D(Model):
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
-				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size-1 ))//2)
+				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size[0]-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size[1]-1 ))//2)
 			self.size = [self.outchn, inchannel // self.gropus, self.size[0], self.size[1]]
 		else:
 			if self.pad == 'VALID':
@@ -190,7 +190,7 @@ class dwconv2D(Model):
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
-				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size-1 ))//2)
+				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size[0]-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size[1]-1 ))//2)
 			self.size = [self.multiplier * inchannel, 1, self.size[0], self.size[1]]
 		else:
 			if self.pad == 'VALID':
@@ -287,7 +287,7 @@ class conv3D(Model):
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
-				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[2]+ (self.dilation_rate-1) * ( self.size-1 ))//2)
+				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size[0]-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size[1]-1 ))//2, (self.size[2]+ (self.dilation_rate-1) * ( self.size[2]-1 ))//2)
 			self.size = [self.outchn, inchannel // self.gropus, self.size[0], self.size[1], self.size[2]]
 		else:
 			if self.pad == 'VALID':

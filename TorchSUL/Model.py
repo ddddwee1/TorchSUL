@@ -103,7 +103,7 @@ def inspect_quant_params(module, result_dict=dict(), prefix=''):
 		except:
 			logger.warning(f'Quant params of layer: {prefix} cannot be properly retrieved. Maybe this layer is never called in calibration.')
 		return result_dict
-	if isinstance(module, nn.ModuleList):
+	if isinstance(module, (nn.ModuleList, nn.Sequential)):
 		for i in range(len(module)):
 			inspect_quant_params(module[i], result_dict=result_dict, prefix=prefix+'.%d'%i)
 		return result_dict
