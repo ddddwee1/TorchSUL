@@ -32,6 +32,10 @@ pip install --upgrade torchsul
 
 ## Patch Notes
 
+#### 2023-09-15 (0.2.9)
+1. (Model) Fix a bug that nn.Sequential is ignored when inspecting quant params
+2. (Layers) Now conv layers support non-squared kernels
+
 #### 2023-09-15 (0.2.8)
 1. (Base) Using config inside the base module is not a wise option. So we remove it from base module.
 2. (Model) Fix a bug of loading state_dict for dense layer when in "from_torch" mode.
