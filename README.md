@@ -32,7 +32,7 @@ pip install --upgrade torchsul
 
 ## Patch Notes
 
-#### 2023-09-15 (0.2.9)
+#### 2023-09-30 (0.2.9)
 1. (Model) Fix a bug that nn.Sequential is ignored when inspecting quant params
 2. (Layers) Now conv layers support non-squared kernels
 
