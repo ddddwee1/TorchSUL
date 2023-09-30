@@ -4,11 +4,11 @@ This package is created for better experience while using Pytorch.
 
 ## How to use
 
-[Quantization](https://github.com/ddddwee1/TorchSUL/blob/master/quant_instruction.md)
+[Quantization](https://github.com/ddddwee1/TorchSUL/blob/master/QuantInstruction.md)
 
 [Model Flags](https://github.com/ddddwee1/TorchSUL/blob/master/FlagList.md)
 
-Quick start (WIP)
+[Quick start](https://github.com/ddddwee1/TorchSUL/blob/master/QuickStart.md)
 
 ## Why making this
 

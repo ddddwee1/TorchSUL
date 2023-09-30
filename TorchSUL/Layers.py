@@ -126,7 +126,7 @@ class deconv2D(Model):
 				self.out_pad = self.stride - 1
 			self.size = [inchannel, self.outchn // self.gropus, self.size, self.size]
 		else:
-			raise Exception("Deconv kernel only supports int")
+			raise NotImplementedError("Deconv kernel only supports int")
 
 	def build(self, *inputs):
 		inp = inputs[0]
@@ -718,7 +718,7 @@ class DeformConv2D(Model):
 			if self.pad == 'VALID':
 				self.pad = 0
 			else:
-				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size-1 ))//2)
+				self.pad = ((self.size[0]+ (self.dilation_rate-1) * ( self.size[0]-1 ))//2, (self.size[1]+ (self.dilation_rate-1) * ( self.size[1]-1 ))//2)
 			self.size = [self.outchn, inchannel, self.size[0], self.size[1]]
 		else:
 			if self.pad == 'VALID':
