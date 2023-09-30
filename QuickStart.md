@@ -56,15 +56,15 @@ In summary, there are 4 differences between nn.Module and SULModel
 
     1. Change the __init__() method to initialize() method, and remove the super().__init__() usage
 
-    2. You dont need to specify the number of input channels for each layer.
+    2. You don't need to specify the number of input channels for each layer.
 
-    3. For same-padding layers (output preserves the same shape as input), you dont need to specify the padding pixels as it will be automatically computed. For zero-padding layers, just specify pad='VALID'.
+    3. For same-padding layers (output preserves the same shape as input), you dont need to specify the padding pixels, as it will be automatically computed. For zero-padding layers, just specify pad='VALID'.
 
     4. Before running the model, you need to feed it with a dummy input first. In this dummy-forward, the model will infer the tensor shapes and build the parameters for each layer. 
 
 ## Loading from standard pytorch checkpoint 
 
-Changing a model from standard pytorch module to SULModel is simple as above, but the state dict are different. SUL provides an option to load from standard pytorch checkpoints by specifying a flag:
+Changing a model from a standard pytorch module to SULModel is simple as above, but the state dicts are different. SUL provides an option to load from standard pytorch checkpoints by specifying a flag:
 
 ```python
 sul_mod.load_state_dict(torch_mod.state_dict())    # This will give errors. Param names are not compatible 
@@ -74,7 +74,7 @@ sul_mod.load_state_dict(torch_mod.state_dict())    # This will work properly by 
 
 ## Changing defualt initialization methods
 
-Before initialization (feeding dummy into network), you can specify the param initialization methods for conv or fc layers. 
+Before initialization (feeding dummy into the network), you can specify the param initialization methods for conv or fc layers. 
 
 ```python
 sul_mod = SULModel(16)
@@ -86,7 +86,7 @@ sul_mod(x_dummy)    # This line is to initialize the mod
 
 ## Customize param initialization 
 
-You may implement the init_params() method to customize the param initialization for specific model 
+You may implement the init_params() method to customize the param initialization for the specific model 
 
 ```python
 class SULModel(M.Model):
@@ -168,7 +168,7 @@ y = sul_mod(x_real)
 
 After this, you will see the saved tensors in "layer_dumps" folder. 
 
-Together will flag mechanism, you can further save tensors from different iterations. For example, if I would like save intermediate results from odd iterations: 
+Together with the flag mechanism, you can further save tensors from different iterations. For example, if I would like to save intermediate results from odd iterations: 
 
 ```python
 class SULModel(M.Model):
@@ -203,7 +203,7 @@ With this approach, the users can inspect & manipulate the forward flow with min
 
 ## Loosely load from checkpoint 
 
-Sometimes the weights in checkpoint is not the same as your model definition. Then you can specify the "loose_load" flag and strict=False to achieve this.
+Sometimes, the weights in the checkpoint are not the same as your model definition. Then, you can specify the "loose_load" flag and strict=False to achieve this.
 
 ```python
 sul_mod = SULModel(16)
@@ -217,7 +217,7 @@ sul_mod.load_state_dict(ckpt, strict=False)
 
 ## Using yaml config file 
 
-SUL provides a light-weighted config implementation. The values can be accessed as simple as using an attribute (X.Y.Z instead of X['Y']['Z'])
+SUL provides a lightweight config implementation. The values can be accessed as simple as using an attribute (X.Y.Z instead of X['Y']['Z'])
 
 ```python
 from TorchSUL import Model as M 
