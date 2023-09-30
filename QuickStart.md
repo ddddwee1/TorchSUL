@@ -45,7 +45,7 @@ class SULModel(M.Model):
         x = self.c3(x)
         return x 
 
-sul_mod = SULModel(3, 16)
+sul_mod = SULModel(16)
 x_dummy = torch.randn(1, 3, 32, 32)
 sul_mod(x_dummy)    # This line is to initialize the mod
 x_real = torch.randn(1, 3, 32, 32)
@@ -77,7 +77,7 @@ sul_mod.load_state_dict(torch_mod.state_dict())    # This will work properly by 
 Before initialization (feeding dummy into network), you can specify the param initialization methods for conv or fc layers. 
 
 ```python
-sul_mod = SULModel(3, 16)
+sul_mod = SULModel(16)
 x_dummy = torch.randn(1, 3, 32, 32)
 sul_mod.set_flag('conv_init_mode', 'normal')   # normal(mean=0, std=0.0001)
 sul_mod.set_flag('fc_init_mode', 'kaiming')
@@ -127,7 +127,7 @@ class SULModel(M.Model):
             x = self.c3(x)
         return x 
 
-sul_mod = SULModel(3, 16)
+sul_mod = SULModel(16)
 x_dummy = torch.randn(1, 3, 32, 32)
 sul_mod(x_dummy)                        # This line is to initialize the mod
 x_real = torch.randn(1, 3, 32, 32)
@@ -157,7 +157,7 @@ class SULModel(M.Model):
         self.save_tensor(x, 'c3_output')
         return x 
 
-sul_mod = SULModel(3, 16)
+sul_mod = SULModel(16)
 x_dummy = torch.randn(1, 3, 32, 32)
 sul_mod(x_dummy)                        # This line is to initialize the mod
 
@@ -187,7 +187,7 @@ class SULModel(M.Model):
         self.save_tensor(x, 'iter_%d_c3_output'%n_iter)
         return x 
 
-sul_mod = SULModel(3, 16)
+sul_mod = SULModel(16)
 x_dummy = torch.randn(1, 3, 32, 32)
 sul_mod(x_dummy)                                     # This line is to initialize the mod
 
@@ -206,7 +206,7 @@ With this approach, the users can inspect & manipulate the forward flow with min
 Sometimes the weights in checkpoint is not the same as your model definition. Then you can specify the "loose_load" flag and strict=False to achieve this.
 
 ```python
-sul_mod = SULModel(3, 16)
+sul_mod = SULModel(16)
 x_dummy = torch.randn(1, 3, 32, 32)
 sul_mod(x_dummy)                                     # This line is to initialize the mod
 
