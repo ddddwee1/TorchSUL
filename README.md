@@ -1,14 +1,16 @@
 # TorchSUL
 
-This package is created for better experience while using Pytorch. 
+This package is created for a better experience while using Pytorch. 
 
-## How to use
+## Quick start
+
+[Quick start](https://github.com/ddddwee1/TorchSUL/blob/master/QuickStart.md)
+
+## References
 
 [Quantization](https://github.com/ddddwee1/TorchSUL/blob/master/QuantInstruction.md)
 
 [Model Flags](https://github.com/ddddwee1/TorchSUL/blob/master/FlagList.md)
-
-[Quick start](https://github.com/ddddwee1/TorchSUL/blob/master/QuickStart.md)
 
 ## Why making this
 
