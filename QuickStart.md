@@ -168,7 +168,7 @@ y = sul_mod(x_real)
 
 After this, you will see the saved tensors in "layer_dumps" folder. 
 
-Together with the flag mechanism, you can further save tensors from different iterations. For example, if I would like to save intermediate results from odd iterations: 
+Together with the flag mechanism, you can further save tensors from different iterations. For example, if you would like to save intermediate results from odd iterations: 
 
 ```python
 class SULModel(M.Model):
@@ -199,7 +199,7 @@ for it in range(100):
     y = sul_mod(x_real)
 ```
 
-With this approach, the users can inspect & manipulate the forward flow with minimum hurt to the model structure and function definition. 
+With this approach, the users can inspect & manipulate the forward flow with minimum change to the model structure and function definition. 
 
 ## Loosely load from checkpoint 
 
