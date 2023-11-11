@@ -1,0 +1,10 @@
+MODEL:
+  FMAP_SIZE: [[28,42], [14,21], [7,11]]
+DATA:
+  H: 448
+  W: 672
+  PATH: 'labels.json'
+ANCHOR:
+  RATIOS: [1.0,2.0,3.0]
+  STRIDES: [16,32,64]
+  SCALE: 2
