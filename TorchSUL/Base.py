@@ -50,10 +50,10 @@ class Model(nn.Module):
 			result = self._slow_forward(*input, **kwargs)
 		else:
 			if not self._is_built:
+				result = self.build_forward(*input, **kwargs)
 				if self._build_forward_warning_:
 					logger.warning('Method build_forward is deprecated and will be removed in future versions.')
 					logger.warning('For parameter initialization purpose, please use "init_params" method')
-				result = self.build_forward(*input, **kwargs)
 				self._set_status()
 			else:
 				result = self.forward(*input, **kwargs)
@@ -136,4 +136,4 @@ class Model(nn.Module):
 		
 	def _load_from_state_dict2(self, state_dict, prefix):
 		# Conveinient method. Omit infrequent arguments
-		pass 
+		pass

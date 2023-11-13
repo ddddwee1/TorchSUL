@@ -34,6 +34,9 @@ pip install --upgrade torchsul
 
 ## Patch Notes
 
+#### 2023-11-13 (0.2.10)
+1. (Layer) Add warning when loading an un-initialized convLayer, deconvLayer or Dense, instead of raising KeyError.
+
 #### 2023-09-30 (0.2.9)
 1. (Model) Fix a bug that nn.Sequential is ignored when inspecting quant params
 2. (Layers) Now conv layers support non-squared kernels

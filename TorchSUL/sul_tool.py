@@ -80,7 +80,7 @@ class SpeedColumn(ProgressColumn):
 			return Text(f"{speed:.2f} it/s", style="progress.data.speed")
 
 def progress_bar(width=40):
-	prog = Progress(TextColumn('[progress.description]{task.description}'), BarColumn(finished_style='green', bar_width=width), MofNCompleteColumn(), TimeRemainingColumn(), SpeedColumn())
+	prog = Progress(TextColumn('[progress.description]{task.description}'), BarColumn(finished_style='green', bar_width=width), MofNCompleteColumn(), TimeRemainingColumn(elapsed_when_finished=True), SpeedColumn())
 	return prog
 
 

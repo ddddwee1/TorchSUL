@@ -235,6 +235,10 @@ class ConvLayer(Model):
 				b = None
 			return b 
 
+		if not self._is_built:
+			logger.warning(f'Layer: [{prefix}] is not built. This layer was not used in dummy forward. Skipping loading state_dict.')
+			return 
+
 		# get names for params
 		if prefix+'conv.weight' in state_dict:
 			# normal load 
@@ -297,6 +301,10 @@ class DeConvLayer(Model):
 			else:
 				b = None
 			return b 
+
+		if not self._is_built:
+			logger.warning(f'Layer: [{prefix}] is not built. This layer was not used in dummy forward. Skipping loading state_dict.')
+			return 
 
 		# get names for params
 		if prefix+'conv.weight' in state_dict:
@@ -436,6 +444,10 @@ class Dense(Model):
 			setattr(self, 'act', relu)
 
 	def _load_from_state_dict2(self, state_dict, prefix):
+		if not self._is_built:
+			logger.warning(f'Layer: [{prefix}] is not built. This layer was not used in dummy forward. Skipping loading state_dict.')
+			return 
+
 		if prefix+'fc.weight' in state_dict:
 			return 
 		if self.get_flag('from_torch'):
