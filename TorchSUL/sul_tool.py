@@ -1,7 +1,8 @@
 import cv2
 import os 
 from loguru import logger
-from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeRemainingColumn
+from rich.progress import Progress, TextColumn, BarColumn, MofNCompleteColumn, TimeRemainingColumn, ProgressColumn
+from rich.text import Text
 
 def extract_frames(fname, output_dir, ext='jpg', skip=1, frame_format='frame_%08d', return_images=False):
 	def make_iterable(cap):
@@ -70,7 +71,16 @@ def combine_audio(vidname, audname, outname, fps=25):
 	final_clip = my_clip.set_audio(audio_background)
 	final_clip.write_videofile(outname,fps=fps)
 
+class SpeedColumn(ProgressColumn):
+	def render(self, task):
+		speed = task.finished_speed or task.speed
+		if speed is None:
+			return Text("?", style="progress.data.speed")
+		else:
+			return Text(f"{speed:.2f} it/s", style="progress.data.speed")
+
 def progress_bar(width=40):
-	prog = Progress(TextColumn('[progress.description]{task.description}'), BarColumn(finished_style='green', bar_width=width), MofNCompleteColumn(), TimeRemainingColumn())
+	prog = Progress(TextColumn('[progress.description]{task.description}'), BarColumn(finished_style='green', bar_width=width), MofNCompleteColumn(), TimeRemainingColumn(), SpeedColumn())
 	return prog
+
 
