@@ -80,7 +80,9 @@ class QATFunc(Function):
 
 	@staticmethod
 	def symbolic(g, x, scale, zero_point, Qn, Qp, zero_offset=False, mode='layer_wise', dim=-1):
-		return g.op('custom_ops::quant', x, scale, zero_point, Qn_i=int(Qn), Qp_i=int(Qp), zero_offset_i=int(zero_offset), mode_s=mode, dim_i=int(dim)).setType(x.type().with_sizes(x.type().sizes()))
+		o1 = g.op('QuantizeLinear', x, scale, zero_point, axis_i=dim)
+		return g.op('DequantizeLinear', o1, scale, zero_point, axis_i=dim)
+		# return g.op('custom_ops::quant', x, scale, zero_point, Qn_i=int(Qn), Qp_i=int(Qp), zero_offset_i=int(zero_offset), mode_s=mode, dim_i=int(dim)).setType(x.type().with_sizes(x.type().sizes()))
 
 
 ##### Quant classes 
@@ -155,7 +157,7 @@ class PercentileObserver(Model):
 		return scale, zero_point
 
 	def _finish_calibrate(self):
-		if (self.min_val is None) or (self.max_val is None):
+		if ((self.min_val is None) or (self.max_val is None)) and (self.scale is None):
 			logger.warning('This quant layer is not fed with any data and it will be omitted. Use M.inspect_quant_params to get specific layer name')
 		elif self.scale is None:
 			s,z = self.get_quant_params()
@@ -230,7 +232,7 @@ class MinMaxObserver(Model):
 		return scale, zero_point
 
 	def _finish_calibrate(self):
-		if (self.min_val is None) or (self.max_val is None):
+		if ((self.min_val is None) or (self.max_val is None)) and (self.scale is None):
 			logger.warning('This quant layer is not fed with any data and it will be omitted. Use M.inspect_quant_params to get specific layer name')
 		elif self.scale is None:
 			s,z = self.get_quant_params()
@@ -337,7 +339,7 @@ class OmseObserver(Model):
 		return scale_best, zero_point_best
 
 	def _finish_calibrate(self):
-		if (self.min_val is None) or (self.max_val is None):
+		if ((self.min_val is None) or (self.max_val is None)) and (self.scale is None):
 			logger.warning('This quant layer is not fed with any data and it will be omitted. Use M.inspect_quant_params to get specific layer name')
 		elif self.scale is None:
 			s,z = self.get_quant_params()
@@ -401,9 +403,9 @@ class UniformQuantizer(Model):
 				self.observer.to(x.device)
 			# x = self.quant_dequant(x)
 			if self.get_flag('dump_onnx'):
-				x = QATFunc.apply(x, self.observer.scale.data, self.observer.zero_point.data, self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
+				x = QATFunc.apply(x, self.observer.scale.data.reshape(-1), self.observer.zero_point.data.reshape(-1), self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
 			else:
-				x = QATFunc.apply(x, self.observer.scale.contiguous(), self.observer.zero_point.contiguous(), self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
+				x = QATFunc.apply(x, self.observer.scale.contiguous().reshape(-1), self.observer.zero_point.contiguous().reshape(-1), self.bit_type.min_val, self.bit_type.max_val, self.zero_offset, self.mode, self.dim)
 		return x.contiguous() 
 
 
@@ -411,11 +413,12 @@ QQuantizers = {"uniform": UniformQuantizer}
 
 
 class QAct(Model):
-	def initialize(self, zero_offset=False, mode='layer_wise', observer=None, bit_type=None):
+	def initialize(self, zero_offset=False, mode='layer_wise', observer=None, bit_type=None, is_weight=False):
 		self.mode = mode 
 		self.zero_offset = zero_offset
 		self.observer_str = observer
 		self.bit_type = bit_type
+		self.is_weight = is_weight
 	def build(self, x):
 		if self._quant:
 			bit_type = self.get_flag('QActBit')
@@ -429,7 +432,7 @@ class QAct(Model):
 				obs_type = 'minmax'
 			if self.observer_str is not None:
 				obs_type = self.observer_str
-			self.quantizer = QQuantizers['uniform'](bit_type=bit_type, zero_offset=self.zero_offset, mode=self.mode, observer=obs_type)
+			self.quantizer = QQuantizers['uniform'](bit_type=bit_type, zero_offset=self.zero_offset, mode=self.mode, observer=obs_type, is_weight=self.is_weight)
 	def forward(self, x):
 		if self._quant:
 			x = self.quantizer(x)

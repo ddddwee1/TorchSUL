@@ -223,21 +223,17 @@ class ConvLayer(Model):
 	def _load_from_state_dict2(self, state_dict, prefix):
 		def _load_weight(k):
 			if not k in state_dict:
-				raise KeyError(f'Attenpt to find {k} but only exist {state_dict.keys()} Cannot find weight in checkpoint for layer: {prefix}')
+				raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), 'Cannot find weight in checkpoint for layer:', prefix)
 			return state_dict.pop(k)
 		def _load_bias(k):
 			if self.conv.usebias:
 				try:
 					b = state_dict.pop(k)
 				except:
-					raise KeyError(f'Attenpt to find {k} but only exist {state_dict.keys()} Bias is set for layer {prefix} but not found in checkpoint. ')
+					raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), 'Bias is set for layer', prefix, 'but not found in checkpoint. Try to set usebias=False to fix this problem')
 			else:
 				b = None
 			return b 
-
-		if not self._is_built:
-			logger.warning(f'Layer: [{prefix}] is not built. This layer was not used in dummy forward. Skipping loading state_dict.')
-			return 
 
 		# get names for params
 		if prefix+'conv.weight' in state_dict:
@@ -251,9 +247,9 @@ class ConvLayer(Model):
 			w = prefix + 'weight'
 			b = prefix + 'bias'
 		else:
-			raise KeyError(f'Cannot find weight in checkpoint for layer: {prefix}')
+			raise Exception('Cannot find weight in checkpoint for layer:', prefix)
 
-		# load weight and bias 
+		# laod weight and bias 
 		w = _load_weight(w)
 		b = _load_bias(b)
 		if self.get_flag('fc2conv') and len(w.shape)==2:
@@ -290,21 +286,17 @@ class DeConvLayer(Model):
 	def _load_from_state_dict2(self, state_dict, prefix):
 		def _load_weight(k):
 			if not k in state_dict:
-				raise KeyError(f'Attenpt to find {k} but only exist {state_dict.keys()}. Cannot find weight in checkpoint for layer: {prefix}')
+				raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), 'Cannot find weight in checkpoint for layer:', prefix)
 			return state_dict.pop(k)
 		def _load_bias(k):
 			if self.conv.usebias:
 				try:
 					b = state_dict.pop(k)
 				except:
-					raise KeyError(f'Attenpt to find {k} but only exist {state_dict.keys()} Bias is set for layer {prefix} but not found in checkpoint.')
+					raise Exception('Attenpt to find', k, 'but only exist', state_dict.keys(), 'Bias is set for layer', prefix, 'but not found in checkpoint. Try to set usebias=False to fix this problem')
 			else:
 				b = None
 			return b 
-
-		if not self._is_built:
-			logger.warning(f'Layer: [{prefix}] is not built. This layer was not used in dummy forward. Skipping loading state_dict.')
-			return 
 
 		# get names for params
 		if prefix+'conv.weight' in state_dict:
@@ -315,9 +307,9 @@ class DeConvLayer(Model):
 			w = prefix + 'weight'
 			b = prefix + 'bias'
 		else:
-			raise KeyError(f'Cannot find weight in checkpoint for layer: {prefix}')
+			raise Exception('Cannot find weight in checkpoint for layer:', prefix)
 
-		# load weight and bias 
+		# laod weight and bias 
 		w = _load_weight(w)
 		b = _load_bias(b)
 
@@ -444,10 +436,6 @@ class Dense(Model):
 			setattr(self, 'act', relu)
 
 	def _load_from_state_dict2(self, state_dict, prefix):
-		if not self._is_built:
-			logger.warning(f'Layer: [{prefix}] is not built. This layer was not used in dummy forward. Skipping loading state_dict.')
-			return 
-
 		if prefix+'fc.weight' in state_dict:
 			return 
 		if self.get_flag('from_torch'):
@@ -456,7 +444,7 @@ class Dense(Model):
 				try:
 					b = state_dict.pop(prefix + 'bias')
 				except:
-					raise KeyError(f'Bias is set for layer {prefix} but not found in checkpoint.')
+					raise Exception('Bias is set for layer', prefix, 'but not found in checkpoint. Try to set usebias=False to fix this problem')
 			else:
 				b = None
 
