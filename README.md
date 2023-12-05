@@ -83,7 +83,7 @@ pip install --upgrade torchsul
 
 ## Projects 
 
-You can find some examples in the "example" folder.
+You can find some examples in the "example" folder. It's almost like a trash bin.
 
 - ArcFace (Deng, Jiankang, et al. "Arcface: Additive angular margin loss for deep face recognition." arXiv preprint arXiv:1801.07698 (2018))
 
@@ -103,7 +103,8 @@ You can find some examples in the "example" folder.
 
 - Polarized Self Attention (Liu, Huajun, et al. "Polarized self-attention: Towards high-quality pixel-wise regression." arXiv preprint arXiv:2107.00782 (2021))
 
-- Model conversions 
+- Some 2D/3D pose estimation works
 
-- Batch_norm compression to speed-up models 
+- Some network structures
 
+- Some cuda kernels
