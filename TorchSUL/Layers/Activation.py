@@ -45,7 +45,7 @@ class Activation(Model):
         if self.act_num==8 or self.act_num==9:
             return self.act(x)
         else:
-            return activation(x, self.act)
+            return activation(x, self.act_num)
 
     def __call__(self, x: Tensor) -> Tensor:
         return super().__call__(x)

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 
 import yaml
 
@@ -28,7 +28,7 @@ class ConfigDict():
 			res = d
 		return res 
 
-	def __getattr__(self, key) -> Any | "ConfigDict":
+	def __getattr__(self, key) -> Union[Any, "ConfigDict"]:
 		if not key[0]=='_':
 			return self.dict[key]
 		else:
