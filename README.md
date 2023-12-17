@@ -36,7 +36,7 @@ pip install --upgrade torchsul
 ## Patch Notes
 
 
-#### 2023-07-15:  Upgrade to 0.3.0
+#### 2023-xx-xx:  Upgrade to 0.3.0
 
 1. Refactor the codes. Now the structure becomes clearer and more extendable
 
