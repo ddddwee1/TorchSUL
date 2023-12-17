@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import cv2 
-import numpy as np 
-import multiprocessing as mp 
+import multiprocessing as mp
 from abc import ABC, abstractmethod
-from .Tool import progress_bar
-
 from typing import Any, Type
 
+from .Progress import progress_bar
 
-class VisualizerProc(mp.Process, ABC):
+
+class VisualizerBase(mp.Process, ABC):
     def __init__(self, imgListQ: mp.Queue, progressQ: mp.Queue):
         super().__init__()
         self.imgListQ = imgListQ
@@ -50,7 +48,7 @@ class ProgressProc(mp.Process):
         self.prog.stop()
 
 
-def visualize(data_bundle: list[Any], TVisProc: Type[VisualizerProc], n_procs=4):
+def start_visualize(data_bundle: list[Any], TVisProc: Type[VisualizerBase], n_procs: int=4):
     progressQ = mp.Queue()
     imageListQ = mp.Queue()
 
