@@ -40,9 +40,11 @@ pip install --upgrade torchsul
 
 1. Refactor the codes. Now the structure becomes clearer and more extendable
 
-2. (Base) build_forward is removed 
+2. Almost supports type hinting 
 
-3. (Tools) Add more tools
+3. (Base) build_forward is removed 
+
+4. (Tools) Add more tools
 
 
 ## Projects 
