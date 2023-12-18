@@ -11,7 +11,7 @@ from .QTypes import QTYPES
 ##### START: Quantizer 
 class QuantizerBase(Model, ABC):
     def __init__(self, bit_type: QBitTypes='int8', observer: QObserverTypes='minmax', zero_offset=False, mode: QuantModes='layer_wise', is_weight=False):
-        super().__init__(self, bit_type=bit_type, observer=observer, zero_offset=zero_offset, mode=mode, is_weight=is_weight)              # make typechecker happy
+        super().__init__(bit_type=bit_type, observer=observer, zero_offset=zero_offset, mode=mode, is_weight=is_weight)              # make typechecker happy
 
     def initialize(self, bit_type: QBitTypes='int8', observer: QObserverTypes='minmax', zero_offset=False, mode: QuantModes='layer_wise', is_weight=False):
         self.bit_type = QTYPES[bit_type]

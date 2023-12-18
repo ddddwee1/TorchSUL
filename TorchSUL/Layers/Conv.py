@@ -59,8 +59,6 @@ class ConvBase(Model, ABC):
         self.weight = Parameter(torch.Tensor(*self.kernel_size))
         if self.usebias:
             self.bias = Parameter(torch.Tensor(self.outchn))
-        else:
-            self.register_parameter('bias', None)
         self.reset_params()
 
         if self._quant:

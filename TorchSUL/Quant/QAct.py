@@ -16,7 +16,7 @@ class QAct(Model):
 
     def __init__(self, zero_offset: bool=False, mode: QuantModes='layer_wise', \
                     observer: Union[QObserverTypes,None]=None, bit_type: Union[QBitTypes, None]=None, is_weight: bool=False):
-        super().__init__(self, zero_offset=zero_offset, mode=mode, observer=observer, bit_type=bit_type, is_weight=is_weight)           # make typechecker happy
+        super().__init__(zero_offset=zero_offset, mode=mode, observer=observer, bit_type=bit_type, is_weight=is_weight)           # make typechecker happy
         
     def initialize(self, zero_offset: bool=False, mode: QuantModes='layer_wise', \
                     observer: Union[QObserverTypes,None]=None, bit_type: Union[QBitTypes, None]=None, is_weight: bool=False):
