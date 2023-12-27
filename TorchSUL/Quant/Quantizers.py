@@ -6,6 +6,7 @@ from ..Base import Model
 from ..Consts.Types import *
 from .Observers import QObservers
 from .QTypes import QTYPES
+from .QATop import QATFunc
 
 
 ##### START: Quantizer 
