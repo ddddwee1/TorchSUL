@@ -17,7 +17,7 @@ class VideoSaver():
         # fourcc = cv2.VideoWriter_fourcc(*'H264')
         self.vidwriter = cv2.VideoWriter(name,fourcc,frame_rate,(size[1],size[0]))
 
-    def write(self, img: NDArray[np.uint8]):
+    def write(self, img: NDArray):
         self.vidwriter.write(img)
 
     def finish(self):
