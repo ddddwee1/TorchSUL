@@ -35,3 +35,13 @@ class Path():
 
     def tostr(self) -> str:
         return self.path 
+
+    def __str__(self) -> str:
+        return self.path
+
+    def exists(self) -> bool:
+        return os.path.exists(self.path)
+
+    def makedirs(self):
+        return os.makedirs(self.path, exist_ok=True)
+        
