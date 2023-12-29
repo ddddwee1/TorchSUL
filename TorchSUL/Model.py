@@ -3,6 +3,8 @@ from . import Layers as L
 from . import Modules
 from . import Quant as Qnt
 from . import Tools, Utils
+from .Consts.Activate import * 
+
 
 __all__ = ['Model', 'ConvLayer', 'ConvLayer1D', 'ConvLayer3D', 'DeConvLayer', 'Dense', 'LSTMCell', 'ConvLSTM', 'AdaptConv3',
 			'Activation', 'DeformConv2D', 'BatchNorm', 'LayerNorm', 'MaxPool2d', 'AvgPool2d', 'BilinearUpSample', 'NNUpSample',
