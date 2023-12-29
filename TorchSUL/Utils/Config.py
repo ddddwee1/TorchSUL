@@ -28,7 +28,7 @@ class ConfigDict():
 			res = d
 		return res 
 
-	def __getattr__(self, key) -> Union[Any, "ConfigDict"]:
+	def __getattr__(self, key) -> Any:
 		if not key[0]=='_':
 			return self.dict[key]
 		else:
