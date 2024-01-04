@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.nn.init as init
 from torch import Tensor
 from torch.nn.parameter import Parameter
+from typing import Tuple 
 
 from ..Base import Model
 
@@ -12,7 +13,7 @@ from ..Base import Model
 class NNUpSample(Model):
     inchannel: int 
     scale: int 
-    size: tuple[int,int,int,int]
+    size: Tuple[int,int,int,int]
     
     def __init__(self, scale:int):
         super().__init__(scale=scale)

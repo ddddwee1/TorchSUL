@@ -1,4 +1,4 @@
-from typing import Literal, Union
+from typing import Union, Tuple
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,7 +14,7 @@ class MaxPool2d(Model):
     stride: TypeKSize2D
     pad_mode: PadModes
     dilation_rate: int
-    pad: Union[int, tuple[int,int]]
+    pad: Union[int, Tuple[int,int]]
 
     def __init__(self, size:TypeKSize2D, stride:TypeKSize2D=1, pad:PadModes='SAME_LEFT', dilation_rate:int=1):
         super().__init__(size, stride, pad, dilation_rate)
@@ -57,7 +57,7 @@ class AvgPool2d(Model):
     stride: TypeKSize2D
     pad_mode: PadModes
     dilation_rate: int
-    pad: Union[int, tuple[int,int]]
+    pad: Union[int, Tuple[int,int]]
 
     def __init__(self, size:TypeKSize2D, stride:TypeKSize2D=1, pad:PadModes='SAME_LEFT', dilation_rate:int=1):
         super().__init__(size, stride, pad, dilation_rate)

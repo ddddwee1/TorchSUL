@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from torch import Tensor
+from typing import Dict, Type
 
 from ..Base import Model
 from ..Consts.Types import *
@@ -55,6 +56,6 @@ class UniformQuantizer(QuantizerBase):
         return x.contiguous() 
 
 
-QQuantizers: dict[Union[QuantizerTypes, str], type[QuantizerBase]] = {"uniform": UniformQuantizer}
+QQuantizers: Dict[Union[QuantizerTypes, str], Type[QuantizerBase]] = {"uniform": UniformQuantizer}
 ##### END: Quantizer 
 

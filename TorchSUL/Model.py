@@ -6,10 +6,6 @@ from . import Tools, Utils
 from .Consts.Activate import * 
 
 
-__all__ = ['Model', 'ConvLayer', 'ConvLayer1D', 'ConvLayer3D', 'DeConvLayer', 'Dense', 'LSTMCell', 'ConvLSTM', 'AdaptConv3',
-			'Activation', 'DeformConv2D', 'BatchNorm', 'LayerNorm', 'MaxPool2d', 'AvgPool2d', 'BilinearUpSample', 'NNUpSample',
-			'QAct', 'Saver', 'init_model', 'to_standard_torch', 'inspect_quant_params', 'BBoxes']
-
 ## Base model 
 Model = Base.Model
 
@@ -28,8 +24,8 @@ Activation = L.Activation
 DeformConv2D = L.DeformConv2D
 BatchNorm = L.BatchNorm
 LayerNorm = L.LayerNorm
-MaxPool2d = L.MaxPool2d
-AvgPool2d = L.AvgPool2d
+MaxPool2D = L.MaxPool2d
+AvgPool2D = L.AvgPool2d
 BilinearUpSample = L.BilinearUpSample
 NNUpSample = L.NNUpSample
 

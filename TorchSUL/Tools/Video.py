@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
+from typing import Tuple, List
 
 from ..Consts.Types import *
 from .Progress import progress_bar
@@ -11,7 +12,7 @@ from .Progress import progress_bar
 
 # video utils 
 class VideoSaver():
-    def __init__(self, name: str, size: tuple[int,int], frame_rate: float=15.0):
+    def __init__(self, name: str, size: Tuple[int,int], frame_rate: float=15.0):
         self.name = name
         fourcc = cv2.VideoWriter_fourcc(*'XVID') # type: ignore
         # fourcc = cv2.VideoWriter_fourcc(*'H264')
@@ -50,7 +51,7 @@ def compress_video(vidname: str, outname: str, fps: float=25) -> None:
     my_clip.write_videofile(outname, fps=fps)
 
 
-def extract_frames(fname: str, output_dir: str, ext: BasicImageTypes='jpg', skip: int=0, frame_format: str='frame_%08d', return_images: bool=False) -> list[NDArray[np.uint8]]:
+def extract_frames(fname: str, output_dir: str, ext: BasicImageTypes='jpg', skip: int=0, frame_format: str='frame_%08d', return_images: bool=False) -> List[NDArray[np.uint8]]:
     assert isinstance(output_dir, str), 'output_dir must be string'
     assert isinstance(fname, str), 'file name must be string'
     assert ext.lower() in ['jpg', 'jpeg', 'png'], "extension must be one of ['jpg', 'jpeg', 'png']"

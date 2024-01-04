@@ -1,6 +1,6 @@
 import copy
 import inspect
-from typing import Any
+from typing import Any, Dict
 
 import torch
 import torch.nn as nn
@@ -30,7 +30,7 @@ def to_standard_torch(model: nn.Module, inplace: bool=True) -> nn.Module:
     return model 
 
 
-def inspect_quant_params(module: nn.Module, result_dict: dict[str, Any]=dict(), prefix: str=''):
+def inspect_quant_params(module: nn.Module, result_dict: Dict[str, Any]=dict(), prefix: str=''):
     if isinstance(module, QAct):
         try:
             zero_point = module.quantizer.observer.zero_point

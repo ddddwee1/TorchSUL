@@ -1,10 +1,12 @@
-from typing import Literal, Union
+from typing import Union, List, Tuple
+from typing_extensions import Literal
+
 
 ## Layer param type declaration
 PadModes = Literal['SAME_LEFT', 'VALID']
-TypeKSize = Union[int, list[int], tuple[int,...]]
-TypeKSize2D = Union[int, list[int], tuple[int,int]]
-TypeKSize3D = Union[int, list[int], tuple[int,int,int]]
+TypeKSize = Union[int, List[int], Tuple[int,...]]
+TypeKSize2D = Union[int, List[int], Tuple[int,int]]
+TypeKSize3D = Union[int, List[int], Tuple[int,int,int]]
 
 ## Quant type declarations
 QuantModes = Literal['layer_wise', 'channel_wise']

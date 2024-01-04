@@ -1,6 +1,6 @@
 import math
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, Tuple, List, Dict
 
 import torch
 import torch.nn as nn
@@ -25,13 +25,13 @@ def _resnet_normal(tensor):
 class ConvBase(Model, ABC):
     size: TypeKSize
     stride: TypeKSize
-    kernel_size = tuple[int,int,int,int]
+    kernel_size = Tuple[int,int,int,int]
     outchn: int 
     pad_mode: PadModes
     dilation_rate: int 
     usebias: bool
     groups: int 
-    pad: Union[int, tuple[int,int]]
+    pad: Union[int, Tuple[int,int]]
     groups: int
     inchn: int
     weight: Parameter
@@ -72,7 +72,7 @@ class ConvBase(Model, ABC):
             self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
 
     @abstractmethod
-    def _parse_args(self, shape: list[int]):
+    def _parse_args(self, shape: List[int]):
         ...
 
     def set_input_quantizer(self, quantizer: QuantizerBase):
@@ -86,7 +86,7 @@ class ConvBase(Model, ABC):
         elif self.get_flag('conv_init_mode')=='resnet':
             _resnet_normal(self.weight)
         else:
-            init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+            init.kaiming_uniform_(self.weight, a=math.sqrt(5))  # type: ignore
         if self.bias is not None:
             if self.get_flag('conv_init_mode')=='normal':
                 init.zeros_(self.bias)
@@ -112,7 +112,7 @@ class conv2D(ConvBase):
     def initialize(self, size:TypeKSize2D, outchn:int, stride:TypeKSize2D=1, pad:PadModes='SAME_LEFT', dilation_rate:int=1, usebias:bool=True, groups:int=1) -> None:
         super().initialize(size=size, outchn=outchn, stride=stride, pad=pad, dilation_rate=dilation_rate, usebias=usebias, groups=groups)
     
-    def _parse_args(self, input_shape: list[int]):
+    def _parse_args(self, input_shape: List[int]):
         inchannel = input_shape[1]
         self.inchn = inchannel
         # parse args
@@ -194,7 +194,7 @@ class deconv2D(ConvBase):
 
 class conv1D(ConvBase):
     size: int
-    kernel_size: tuple[int,int,int]
+    kernel_size: Tuple[int,int,int]
     pad: int
     stride: int
 
@@ -228,8 +228,8 @@ class conv1D(ConvBase):
 class conv3D(ConvBase):
     size: TypeKSize3D
     stride: TypeKSize3D
-    kernel_size: tuple[int,int,int,int,int]
-    pad: Union[int, tuple[int,int,int]]
+    kernel_size: Tuple[int,int,int,int,int]
+    pad: Union[int, Tuple[int,int,int]]
 
     def __init__(self, size:TypeKSize3D, outchn:int, stride:TypeKSize3D=1, pad:PadModes='SAME_LEFT', dilation_rate:int=1, usebias:bool=True, groups:int=1):
         super().__init__(size=size, outchn=outchn, stride=stride, pad=pad, dilation_rate=dilation_rate, usebias=usebias, groups=groups)

@@ -1,5 +1,5 @@
 import math
-from typing import Literal, Union
+from typing import Union, List, Tuple
 
 import torch
 import torch.nn.init as init
@@ -19,15 +19,15 @@ def _resnet_normal(tensor):
 
 
 class DeformConv2D(Model):
-    TypeKSize = Union[int, list[int], tuple[int,int]]
+    TypeKSize = Union[int, List[int], Tuple[int,int]]
     size: TypeKSize
-    kernel_size = tuple[int,int,int,int]
+    kernel_size = Tuple[int,int,int,int]
     outchn: int 
     stride: TypeKSize 
     pad_mode: PadModes
     dilation_rate: int 
     usebias: bool
-    pad: Union[int, tuple[int,int]]
+    pad: Union[int, Tuple[int,int]]
     groups: int
     inchn: int
     weight: Parameter
@@ -45,7 +45,7 @@ class DeformConv2D(Model):
         assert (pad in ['VALID','SAME_LEFT'])
         self.pad_mode = pad 
 
-    def _parse_args(self, input_shape: list[int]):
+    def _parse_args(self, input_shape: List[int]):
         inchannel = input_shape[1]
         self.inchn = inchannel
         # parse args
@@ -78,7 +78,7 @@ class DeformConv2D(Model):
         elif self.get_flag('conv_init_mode')=='resnet':
             _resnet_normal(self.weight)
         else:
-            init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+            init.kaiming_uniform_(self.weight, a=math.sqrt(5))  # type: ignore
         if self.bias is not None:
             if self.get_flag('conv_init_mode')=='normal':
                 init.zeros_(self.bias)

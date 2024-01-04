@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, Union
+from typing import Type, Union, Tuple, Dict
 
 import torch
 from loguru import logger
@@ -49,7 +49,7 @@ class ObserverBase(Model, ABC):
         ...
 
     @torch.no_grad()
-    def get_quant_params(self, max_val: Tensor, min_val: Tensor) -> tuple[Tensor, Tensor]:
+    def get_quant_params(self, max_val: Tensor, min_val: Tensor) -> Tuple[Tensor, Tensor]:
         if self.zero_offset:
             max_val = torch.max(max_val, -min_val)
             scale = max_val / min(self.bit_type.max_val, -self.bit_type.min_val)
@@ -194,6 +194,6 @@ class OmseObserver(ObserverBase):
         return scale_best, zero_point_best
 
 
-QObservers: dict[Union[QObserverTypes, str], Type[ObserverBase]] = {"minmax": MinMaxObserver, 'percentile': PercentileObserver, 'omse': OmseObserver}
+QObservers: Dict[Union[QObserverTypes, str], Type[ObserverBase]] = {"minmax": MinMaxObserver, 'percentile': PercentileObserver, 'omse': OmseObserver}
 ##### END: Observer classes 
 

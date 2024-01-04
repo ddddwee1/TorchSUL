@@ -1,10 +1,10 @@
-import os 
-import re
 import glob
-import shutil 
+import os
+import re
+import shutil
+from typing import Iterator, Union
 
-from typing import Union, Iterator
-from loguru import logger 
+from loguru import logger
 
 
 # path utils 
@@ -66,14 +66,20 @@ class Path():
     def copy_dir_to(self, target: 'Path'):
         os.makedirs(os.path.dirname(target.path), exist_ok=True)
         if os.path.exists(target.path):
-            shutil.rmtree(target.path)
+            target.remove_dir()
         shutil.copytree(self.path, target.path)
 
     def remove(self):
-        os.remove(self.path)
+        try:
+            os.remove(self.path)
+        except Exception as e:
+            logger.warning(f'Cannot remove {self.path}. {e}')
     
     def remove_dir(self):
-        shutil.rmtree(self.path)
+        try:
+            shutil.rmtree(self.path)
+        except Exception as e:
+            logger.warning(f'Cannot remove {self.path}. {e}')
 
     def makedirs(self):
         os.makedirs(self.path, exist_ok=True)
@@ -81,3 +87,9 @@ class Path():
     def replace(self, src: str, tgt: str) -> 'Path':
         path_new = self.path.replace(src, tgt)
         return Path(path_new)
+
+    def exists(self) -> bool:
+        return os.path.exists(self.path)
+        
+
+        

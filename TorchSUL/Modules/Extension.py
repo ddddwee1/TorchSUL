@@ -1,5 +1,6 @@
 import torch
 from torch import Tensor
+from typing import Tuple, List 
 
 from .. import Layers as L
 
@@ -24,7 +25,7 @@ class LSTMCell(Model):
         self.hI = Dense(outdim, usebias=usebias, norm=False)
         self.hC = Dense(outdim, usebias=usebias, norm=False)
 
-    def forward(self, x: Tensor, h: Tensor, c_prev: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(self, x: Tensor, h: Tensor, c_prev: Tensor) -> Tuple[Tensor, Tensor]:
         f = self.F(x) + self.hF(h)
         o = self.O(x) + self.hO(h)
         i = self.I(x) + self.hI(h)
@@ -38,7 +39,7 @@ class LSTMCell(Model):
         next_h = o_ * torch.tanh(next_c)
         return next_h, next_c
     
-    def __call__(self, x: Tensor, h: Tensor, c_prev: Tensor) -> tuple[Tensor, Tensor]:
+    def __call__(self, x: Tensor, h: Tensor, c_prev: Tensor) -> Tuple[Tensor, Tensor]:
         return super().__call__(x, h, c_prev)
 
 
@@ -56,7 +57,7 @@ class ConvLSTM(Model):
         self.ix = ConvLayer(3, chn, usebias=usebias)
         self.ih = ConvLayer(3, chn, usebias=usebias)
 
-    def forward(self, x: Tensor, c: Tensor, h: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(self, x: Tensor, c: Tensor, h: Tensor) -> Tuple[Tensor, Tensor]:
         gx = self.gx(x)
         gh = self.gh(h)
 
@@ -78,7 +79,7 @@ class ConvLSTM(Model):
         h = o * torch.tanh(cell)
         return cell, h 
     
-    def __call__(self, x: Tensor, c: Tensor, h: Tensor) -> tuple[Tensor, Tensor]:
+    def __call__(self, x: Tensor, c: Tensor, h: Tensor) -> Tuple[Tensor, Tensor]:
         return super().__call__(x, c, h)
 
 

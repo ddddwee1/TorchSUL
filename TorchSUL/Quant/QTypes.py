@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Type, Union
+from typing import Type, Union, Dict
 
 from ..Consts.Types import *
 
@@ -30,6 +30,6 @@ class QInt16(QTypeBase):
     signed = True 
 
 
-QTYPES: dict[Union[QBitTypes, str], Type[QTypeBase]] = {"uint8": QUint8, "int8": QInt8, 'int16':QInt16}
+QTYPES: Dict[Union[QBitTypes, str], Type[QTypeBase]] = {"uint8": QUint8, "int8": QInt8, 'int16':QInt16}
 ##### END: QuantType classes 
 

@@ -1,115 +1,133 @@
-from __future__ import annotations
+import torch 
+import torchvision.ops as ops
 
-from typing import Literal, Optional
-
-import numpy as np
-from numpy.typing import NDArray
-from typing_extensions import Self
+from typing import Optional
+from typing_extensions import Literal
+from torch import Tensor 
 
 
 # bbox utils 
 class BBoxes():
-    format: Literal['xyxy','x1y1wh','xcycwh']
-    conf: NDArray | None
-    bbox: NDArray
-    
-    def __init__(self, bbox: NDArray, conf: Optional[NDArray] = None, format: Literal['xyxy','x1y1wh','xcycwh']='xyxy'):
-        # TODO: Later can integrate NMS here 
-        # TODO: Add thresholding, slicing
-        assert format in ['xyxy','x1y1wh', 'xcycwh'], 'format must be one of ["xyxy", "x1y1wh", "xcycwh"]'
-        assert (bbox.shape[1]==4) or (bbox.shape[1]==5), 'shape of each bbox must be 4 or 5'
-        
+    bbox: Tensor 
+    conf: Optional[Tensor]
+    box_format: Literal['xyxy', 'x1y1wh', 'xcycwh']
+
+    def __init__(self, bbox: Tensor, box_format: Literal['xyxy', 'x1y1wh', 'xcycwh'], conf: Optional[Tensor]=None): 
+        # dont use inplace
+        assert (bbox.shape[-1] == 4) or (bbox.shape[-1] == 5)
+        assert len(bbox.shape)==2
+        self.bbox = bbox[:, :4].clone()
         if conf is None:
-            self.bbox = bbox[:, :4].copy()
-            if bbox.shape[1]==4:
+            if bbox.shape[-1] == 4:
                 self.conf = None 
             else:
-                self.conf = bbox[:, 4].copy()
+                self.conf = bbox[:, 4].clone()
         else:
-            self.bbox = bbox.copy()
-            self.conf = conf.copy()
-        self.format = format
+            self.conf = conf.clone()
+        self.box_format = box_format
 
-    def get(self) -> NDArray:
-        if self.conf is None:
-            return self.bbox
-        else:
-            return np.concatenate([self.bbox, self.conf], axis=1)
+    def copy(self):
+        return type(self)(self.bbox, self.box_format, self.conf)
+
+    def x1y1wh2xyxy(self) -> 'BBoxes':
+        x2 = self.bbox[:, 0] + self.bbox[:, 2]
+        y2 = self.bbox[:, 1] + self.bbox[:, 3]
+        new_bbox = torch.stack([self.bbox[:, 0], self.bbox[:, 1], x2, y2], dim=-1)
+        return type(self)(new_bbox, 'xyxy', self.conf)
     
-    def get_box(self) -> NDArray:
-        return self.bbox
-    
-    def get_conf(self) -> NDArray|None:
-        return self.conf 
-
-    def copy(self) -> Self:
-        return type(self)(self.bbox, self.conf, self.format)
-
-    def x1y1wh2xyxy(self) -> Self:
-        x2 = self.bbox[:, 2] + self.bbox[:, 0]
-        y2 = self.bbox[:, 3] + self.bbox[:, 1]
-        self.bbox[:, 2] = x2 
-        self.bbox[:, 3] = y2 
-        return self
-
-    def xyxy2x1y1wh(self) -> Self:
+    def xyxy2x1y1wh(self) -> 'BBoxes':
         w = self.bbox[:, 2] - self.bbox[:, 0]
         h = self.bbox[:, 3] - self.bbox[:, 1]
-        self.bbox[:, 2] = w 
-        self.bbox[:, 3] = h 
-        return self 
-
-    def x1y1wh2xcycwh(self) -> Self:
-        xc = self.bbox[:, 0] + 0.5 * self.bbox[:, 2]
-        yc = self.bbox[:, 1] + 0.5 * self.bbox[:, 3]
-        self.bbox[:, 0] = xc 
-        self.bbox[:, 1] = yc 
-        return self 
-
-    def xcycwh2x1y1wh(self) -> Self:
+        new_bbox = torch.stack([self.bbox[:, 0], self.bbox[:, 1], w, h], dim=-1)
+        return type(self)(new_bbox, 'x1y1wh', self.conf)
+    
+    def xyxy2xcycwh(self) -> 'BBoxes':
+        xc = 0.5 * (self.bbox[:, 0] + self.bbox[:, 2])
+        yc = 0.5 * (self.bbox[:, 1] + self.bbox[:, 3])
+        w = self.bbox[:, 2] - self.bbox[:, 0]
+        h = self.bbox[:, 3] - self.bbox[:, 1]
+        new_bbox = torch.stack([xc,yc,w,h], dim=-1)
+        return type(self)(new_bbox, 'xcycwh', self.conf)
+    
+    def xcycwh2xyxy(self) -> 'BBoxes':
         x1 = self.bbox[:, 0] - 0.5 * self.bbox[:, 2]
         y1 = self.bbox[:, 1] - 0.5 * self.bbox[:, 3]
-        self.bbox[:, 0] = x1 
-        self.bbox[:, 1] = y1 
-        return self 
-
-    def xcycwh2xyxy(self) -> Self:
-        self.xcycwh2x1y1wh()
-        return self.x1y1wh2xyxy()
-
-    def xyxy2xcycwh(self) -> Self:
-        self.xyxy2x1y1wh()
-        return self.x1y1wh2xcycwh()
-
-    def convert(self, target_format: Literal['xyxy','x1y1wh','xcycwh'] = 'xyxy') -> Self:
-        assert target_format in ['xyxy','x1y1wh', 'xcycwh']
-        funcs = {('x1y1wh','xcycwh'): self.x1y1wh2xcycwh, 
-                    ('xcycwh', 'x1y1wh'): self.xcycwh2x1y1wh,
-                    ('x1y1wh', 'xyxy'): self.x1y1wh2xyxy,
-                    ('xyxy', 'x1y1wh'): self.xyxy2x1y1wh,
-                    ('xcycwh', 'x1y1wh'): self.xcycwh2x1y1wh,
-                    ('x1y1wh', 'xcycwh'): self.x1y1wh2xcycwh}
-
-        convert_tuple = (self.format, target_format)
+        x2 = self.bbox[:, 0] + 0.5 * self.bbox[:, 2]
+        y2 = self.bbox[:, 1] + 0.5 * self.bbox[:, 3]
+        new_bbox = torch.stack([x1, y1, x2, y2], dim=-1)
+        return type(self)(new_bbox, 'xyxy', self.conf)
+    
+    def x1y1wh2xcycwh(self) -> 'BBoxes':
+        xc = self.bbox[:, 0] + 0.5 * self.bbox[:, 2]
+        yc = self.bbox[:, 1] + 0.5 * self.bbox[:, 3]
+        new_bbox = torch.stack([xc, yc, self.bbox[:, 2], self.bbox[:, 3]], dim=-1)
+        return type(self)(new_bbox, 'xcycwh', self.conf)
+    
+    def xcycwh2x1y1wh(self) -> 'BBoxes':
+        x1 = self.bbox[:, 0] - 0.5 * self.bbox[:, 2]
+        y1 = self.bbox[:, 1] - 0.5 * self.bbox[:, 3] 
+        new_bbox = torch.stack([x1, y1, self.bbox[:, 2], self.bbox[:, 3]], dim=-1)
+        return type(self)(new_bbox, 'x1y1wh', self.conf)
+    
+    def convert(self, target_format: Literal['xyxy', 'x1y1wh', 'xcycwh']) -> 'BBoxes':
+        funcs = {('x1y1wh', 'xcycwh'): self.x1y1wh2xcycwh, 
+                 ('x1y1wh', 'xyxy'): self.x1y1wh2xyxy,
+                 ('xcycwh', 'x1y1wh'): self.xcycwh2x1y1wh,
+                 ('xcycwh', 'xyxy'): self.xcycwh2xyxy,
+                 ('xyxy', 'x1y1wh'): self.xyxy2x1y1wh,
+                 ('xyxy', 'xcycwh'): self.xyxy2xcycwh}
+        
+        convert_tuple = (self.box_format, target_format)
         if convert_tuple in funcs:
-            funcs[convert_tuple]()
-        return self
+            new_obj = funcs[convert_tuple]()
+        else:
+            new_obj = self.copy()
+        return new_obj
 
-    def iou(self, other: BBoxes) -> NDArray:
-        box1 = self.copy().convert('xyxy').get_box()
-        box2 = other.copy().convert('xyxy').get_box()
-        x11, y11, x12, y12 = np.split(box1, 4, axis=1)
-        x21, y21, x22, y22 = np.split(box2, 4, axis=1)
-        xA = np.maximum(x11, np.transpose(x21))
-        yA = np.maximum(y11, np.transpose(y21))
-        xB = np.minimum(x12, np.transpose(x22))
-        yB = np.minimum(y12, np.transpose(y22))
-        interArea = np.maximum((xB - xA + 1), 0) * np.maximum((yB - yA + 1), 0)
-        boxAArea = (x12 - x11 + 1) * (y12 - y11 + 1)
-        boxBArea = (x22 - x21 + 1) * (y22 - y21 + 1)
-        iou = interArea / (boxAArea + np.transpose(boxBArea) - interArea)
-        return iou 
+    def iou(self, other: 'BBoxes') -> Tensor:
+        b1 = self.convert('xyxy')
+        b2 = other.convert('xyxy')
+        return ops.box_iou(b1.bbox, b2.bbox)
 
-    def __xor__(self, other: BBoxes) -> NDArray:
+    def __xor__(self, other: 'BBoxes') -> Tensor:
         return self.iou(other)
 
+    def distance(self, other: 'BBoxes') -> Tensor:
+        b1 = self.convert('xcycwh')
+        b2 = other.convert('xcycwh')
+        return torch.cdist(b1.bbox[:, :2], b2.bbox[:, :2])
+
+    def __or__(self, other: 'BBoxes') -> Tensor:
+        return self.distance(other)
+
+    def cat(self, other: 'BBoxes') -> 'BBoxes': 
+        assert self.box_format==other.box_format
+        new_box = torch.cat([self.bbox, other.bbox], dim=0)
+        if (self.conf is not None) and (other.conf is not None):
+            new_conf = torch.cat([self.conf, other.conf], dim=0)
+        else:
+            new_conf = None 
+        return BBoxes(new_box, self.box_format, new_conf)
+
+    def __matmul__(self, other: 'BBoxes') -> 'BBoxes':
+        return self.cat(other)
+
+    def __getitem__(self, idx: Tensor) -> 'BBoxes':
+        new_box = self.bbox[idx]
+        if self.conf is not None:
+            new_conf = self.conf[idx]
+        else:
+            new_conf = None 
+        return BBoxes(new_box, self.box_format, new_conf)
+
+    def __len__(self):
+        return len(self.bbox)
+
+    def inside(self, other: 'BBoxes') -> Tensor:
+        assert len(self)==len(other), f'Length should be the same for bbox __contain__, first: {len(other)}, second: {len(self)}'
+        this_box = self.convert('xcycwh').bbox
+        other_box = other.convert('xyxy').bbox
+        xs = this_box[:, 0]
+        ys = this_box[:, 1]
+        result = ((xs > other_box[:, 0]) & (xs < other_box[:, 2]) & (ys > other_box[:, 1]) & (ys < other_box[:, 3]))
+        return result
