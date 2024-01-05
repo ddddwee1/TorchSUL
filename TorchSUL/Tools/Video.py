@@ -12,13 +12,22 @@ from .Progress import progress_bar
 
 # video utils 
 class VideoSaver():
-    def __init__(self, name: str, size: Tuple[int,int], frame_rate: float=15.0):
+    def __init__(self, name: str, size: Union[Tuple[int,int], Literal['auto']] = 'auto', frame_rate: float = 15.0):
         self.name = name
-        fourcc = cv2.VideoWriter_fourcc(*'XVID') # type: ignore
-        # fourcc = cv2.VideoWriter_fourcc(*'H264')
-        self.vidwriter = cv2.VideoWriter(name,fourcc,frame_rate,(size[1],size[0]))
+        self.frame_rate = frame_rate
+        self.fourcc = cv2.VideoWriter_fourcc(*'XVID') # type: ignore
+        self.size = size 
+
+        if size=='auto':
+            self.vidwriter = None 
+        else:
+            self.vidwriter = cv2.VideoWriter(self.name, self.fourcc, self.frame_rate, (self.size[1],self.size[0]))
 
     def write(self, img: NDArray):
+        if self.vidwriter is None:
+            self.size = [img.shape[0], img.shape[1]]
+            self.vidwriter = cv2.VideoWriter(self.name, self.fourcc, self.frame_rate,(self.size[1],self.size[0]))
+        assert (img.shape[0]==self.size[0]) and (img.shape[1]==self.size[1]), f'VideoSaver: Image shape is not consistent. Set {self.size}, but got {img.shape}'
         self.vidwriter.write(img)
 
     def finish(self):
