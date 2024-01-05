@@ -24,7 +24,7 @@ This package is created for a better experience with Pytorch.
 
 ## Installation
 
-You need to install the latest version of pytorch, and python>=3.9
+You need to install pytorch>=1.10, and python>=3.7
 
 Good, then just 
 
