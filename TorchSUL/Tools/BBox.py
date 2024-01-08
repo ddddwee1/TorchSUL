@@ -7,7 +7,7 @@ from torch import Tensor
 
 
 # bbox utils 
-class BBOX():
+class BBox():
     bbox: Tensor 
     conf: Optional[Tensor]
     box_format: Literal['xyxy', 'x1y1wh', 'xcycwh']
