@@ -158,12 +158,17 @@ class LayerNorm(Model):
             init.zeros_(self.bias)
 
     def forward(self, x: Tensor) -> Tensor:
-        mean = torch.mean(x, dim=self.dim, keepdim=True)
-        var = torch.var(x, dim=self.dim, correction=0, keepdim=True)
+        if self.dim!=-1:
+            x = x.transpose(self.dim, -1)
+        mean = torch.mean(x, dim=-1, keepdim=True)
+        var = torch.var(x, dim=-1, correction=0, keepdim=True)
         if self.affine:
-            return self.weight * (x - mean) / torch.sqrt(var + self.eps) + self.bias
+            out = self.weight * (x - mean) / torch.sqrt(var + self.eps) + self.bias
         else:
-            return (x - mean) / torch.sqrt(var + self.eps)
+            out = (x - mean) / torch.sqrt(var + self.eps)
+        if self.dim!=-1:
+            out = out.transpose(self.dim, -1)
+        return out 
         
     def __call__(self, x:Tensor) -> Tensor:
         return super().__call__(x)
@@ -171,3 +176,4 @@ class LayerNorm(Model):
     def to_torch(self) -> nn.Sequential:
         mod = nn.Sequential(Transpose_last(self.dim), nn.LayerNorm(normalized_shape=self.chn), Transpose_last(self.dim))
         return mod 
+
