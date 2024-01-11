@@ -1,3 +1,4 @@
+import sys 
 from rich.progress import (BarColumn, MofNCompleteColumn, Progress,
                            ProgressColumn, TextColumn, TimeRemainingColumn)
 from rich.text import Text
@@ -13,5 +14,18 @@ class SpeedColumn(ProgressColumn):
             return Text(f"{speed:.2f} it/s", style="progress.data.speed")
 
 def progress_bar(width: int=40) -> Progress:
-    prog = Progress(TextColumn('[progress.description]{task.description}'), BarColumn(finished_style='green', bar_width=width), MofNCompleteColumn(), TimeRemainingColumn(elapsed_when_finished=True), SpeedColumn())
+    is_debug_mode = False
+    gettrace = getattr(sys, 'gettrace', None)
+    if gettrace is not None:
+        if gettrace() is not None:
+            is_debug_mode = True
+
+    prog = Progress(
+        TextColumn('[progress.description]{task.description}'), 
+        BarColumn(finished_style='green', bar_width=width), 
+        MofNCompleteColumn(), 
+        TimeRemainingColumn(elapsed_when_finished=True), 
+        SpeedColumn(),
+        disable = is_debug_mode,
+        )
     return prog
