@@ -46,7 +46,7 @@ def check_fps(fname: str) -> float:
     return fps 
 
 
-def combine_audio(vidname: str, audname: str, outname: str, fps: float=25) -> None:
+def combine_audio(vidname: str, audname: str, outname: str, fps: Optional[float]=None) -> None:
     import moviepy.editor as mpe
     my_clip = mpe.VideoFileClip(vidname)
     audio_background = mpe.AudioFileClip(audname)
