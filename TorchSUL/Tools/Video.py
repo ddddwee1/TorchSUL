@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from loguru import logger
 from numpy.typing import NDArray
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 from ..Consts.Types import *
 from .Progress import progress_bar
@@ -54,7 +54,7 @@ def combine_audio(vidname: str, audname: str, outname: str, fps: float=25) -> No
     final_clip.write_videofile(outname,fps=fps)
 
 
-def compress_video(vidname: str, outname: str, fps: float=25) -> None:
+def compress_video(vidname: str, outname: str, fps: Optional[float]=None) -> None:
     import moviepy.editor as mpe
     my_clip = mpe.VideoFileClip(vidname)
     my_clip.write_videofile(outname, fps=fps)
