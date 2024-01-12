@@ -8,12 +8,15 @@ from loguru import logger
 
 
 # path utils 
-class Path():
+class Path(os.PathLike[str]):
     def __init__(self, path: str):
         self.path = path 
 
     def __str__(self) -> str:
         return self.path
+    
+    def __fspath__(self) -> str:
+        return self.path 
 
     @staticmethod
     def _tostr(obj: Union[str, 'Path']) -> str:
@@ -33,8 +36,13 @@ class Path():
     
     def __contains__(self, s: str):
         return s in self.path
+    
+    def __getitem__(self, idx: int) -> str:
+        return self.path.split('/')[idx]
 
-    def find_one(self, pattern: str) -> 'Path':
+    def find_one(self, pattern: str, use_regex: bool = False) -> 'Path':
+        if not use_regex:
+            pattern = '^' + pattern.replace('*', '.*') + '$'
         new_path = None 
         for item in glob.glob(os.path.join(self.path, '*')):
             result = re.search(pattern, item.split('/')[-1])
@@ -43,10 +51,11 @@ class Path():
         if new_path is not None:
             return Path(new_path)
         else:
-            logger.warning(f'Cannot find pattern {pattern} in folder {self.path}')
             raise FileNotFoundError(f'Cannot find pattern {pattern} in folder {self.path}')
         
-    def find(self, pattern: str) -> Iterator['Path']:
+    def find(self, pattern: str, use_regex: bool = False) -> Iterator['Path']:
+        if not use_regex:
+            pattern = '^' + pattern.replace('*', '.*') + '$'
         for item in glob.glob(os.path.join(self.path, '*')):
             result = re.search(pattern, item.split('/')[-1])
             if result is not None:
@@ -90,6 +99,10 @@ class Path():
 
     def exists(self) -> bool:
         return os.path.exists(self.path)
-        
+    
+    def basename(self) -> str:
+        return os.path.basename(self.path)
+    
+    def dirname(self) -> 'Path':
+        return Path(os.path.dirname(self.path))
 
-        
