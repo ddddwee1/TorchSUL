@@ -107,7 +107,7 @@ class BatchNorm(Model):
 
     def to_torch(self) -> nn.modules.batchnorm._BatchNorm:
         if self.eps is not None:
-            if self.n_dims==3:
+            if self.n_dims==3 or self.n_dims==2:
                 bn = nn.BatchNorm1d(self.num_features, self.eps, self.momentum, self.affine, self.track_running_stats)
             elif self.n_dims==4:
                 bn = nn.BatchNorm2d(self.num_features, self.eps, self.momentum, self.affine, self.track_running_stats)
