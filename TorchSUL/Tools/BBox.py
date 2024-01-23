@@ -2,7 +2,7 @@ import torch
 import torchvision.ops as ops
 
 from typing import Optional
-from typing_extensions import Literal
+from typing_extensions import Literal, Self
 from torch import Tensor 
 
 
@@ -33,19 +33,19 @@ class BBox():
     def shape(self):
         return self.bbox.shape
 
-    def x1y1wh2xyxy(self) -> 'BBOX':
+    def x1y1wh2xyxy(self) -> Self:
         x2 = self.bbox[..., 0] + self.bbox[..., 2]
         y2 = self.bbox[..., 1] + self.bbox[..., 3]
         new_bbox = torch.stack([self.bbox[..., 0], self.bbox[..., 1], x2, y2], dim=-1)
         return type(self)(new_bbox, 'xyxy', self.conf)
     
-    def xyxy2x1y1wh(self) -> 'BBOX':
+    def xyxy2x1y1wh(self) -> Self:
         w = self.bbox[..., 2] - self.bbox[..., 0]
         h = self.bbox[..., 3] - self.bbox[..., 1]
         new_bbox = torch.stack([self.bbox[..., 0], self.bbox[..., 1], w, h], dim=-1)
         return type(self)(new_bbox, 'x1y1wh', self.conf)
     
-    def xyxy2xcycwh(self) -> 'BBOX':
+    def xyxy2xcycwh(self) -> Self:
         xc = 0.5 * (self.bbox[..., 0] + self.bbox[..., 2])
         yc = 0.5 * (self.bbox[..., 1] + self.bbox[..., 3])
         w = self.bbox[..., 2] - self.bbox[..., 0]
@@ -53,7 +53,7 @@ class BBox():
         new_bbox = torch.stack([xc,yc,w,h], dim=-1)
         return type(self)(new_bbox, 'xcycwh', self.conf)
     
-    def xcycwh2xyxy(self) -> 'BBOX':
+    def xcycwh2xyxy(self) -> Self:
         x1 = self.bbox[..., 0] - 0.5 * self.bbox[..., 2]
         y1 = self.bbox[..., 1] - 0.5 * self.bbox[..., 3]
         x2 = self.bbox[..., 0] + 0.5 * self.bbox[..., 2]
@@ -61,19 +61,19 @@ class BBox():
         new_bbox = torch.stack([x1, y1, x2, y2], dim=-1)
         return type(self)(new_bbox, 'xyxy', self.conf)
     
-    def x1y1wh2xcycwh(self) -> 'BBOX':
+    def x1y1wh2xcycwh(self) -> Self:
         xc = self.bbox[..., 0] + 0.5 * self.bbox[..., 2]
         yc = self.bbox[..., 1] + 0.5 * self.bbox[..., 3]
         new_bbox = torch.stack([xc, yc, self.bbox[..., 2], self.bbox[..., 3]], dim=-1)
         return type(self)(new_bbox, 'xcycwh', self.conf)
     
-    def xcycwh2x1y1wh(self) -> 'BBOX':
+    def xcycwh2x1y1wh(self) -> Self:
         x1 = self.bbox[..., 0] - 0.5 * self.bbox[..., 2]
         y1 = self.bbox[..., 1] - 0.5 * self.bbox[..., 3] 
         new_bbox = torch.stack([x1, y1, self.bbox[..., 2], self.bbox[..., 3]], dim=-1)
         return type(self)(new_bbox, 'x1y1wh', self.conf)
     
-    def convert(self, target_format: Literal['xyxy', 'x1y1wh', 'xcycwh']) -> 'BBOX':
+    def convert(self, target_format: Literal['xyxy', 'x1y1wh', 'xcycwh']) -> Self:
         funcs = {('x1y1wh', 'xcycwh'): self.x1y1wh2xcycwh, 
                  ('x1y1wh', 'xyxy'): self.x1y1wh2xyxy,
                  ('xcycwh', 'x1y1wh'): self.xcycwh2x1y1wh,
@@ -88,15 +88,15 @@ class BBox():
             new_obj = self.copy()
         return new_obj
 
-    def iou(self, other: 'BBOX') -> Tensor:
+    def iou(self, other: Self) -> Tensor:
         b1 = self.convert('xyxy')
         b2 = other.convert('xyxy')
         return ops.box_iou(b1.bbox, b2.bbox)
 
-    def __xor__(self, other: 'BBOX') -> Tensor:
+    def __xor__(self, other: Self) -> Tensor:
         return self.iou(other)
 
-    def distance(self, other: 'BBOX') -> Tensor:
+    def distance(self, other: Self) -> Tensor:
         b1 = self.convert('xcycwh')
         b2 = other.convert('xcycwh')
         assert len(self.shape) in [2,3], 'Box shape must be 2 or 3 to compute distance'
@@ -104,10 +104,10 @@ class BBox():
             assert self.shape[0]==other.shape[0], f'Dim 0 should has the same shape for bbox distance. Got {self.shape[0]} and {other.shape[0]}'
         return torch.cdist(b1.bbox[..., :2], b2.bbox[..., :2])
 
-    def __or__(self, other: 'BBOX') -> Tensor:
+    def __or__(self, other: Self) -> Tensor:
         return self.distance(other)
 
-    def cat(self, other: 'BBOX') -> 'BBOX': 
+    def cat(self, other: Self, dim: int = 1) -> Self: 
         assert self.box_format==other.box_format, 'box format should be the same for concatenation'
         new_box = torch.cat([self.bbox, other.bbox], dim=0)
         if (self.conf is not None) and (other.conf is not None):
@@ -116,10 +116,10 @@ class BBox():
             new_conf = None 
         return BBOX(new_box, self.box_format, new_conf)
 
-    def __matmul__(self, other: 'BBOX') -> 'BBOX':
+    def __matmul__(self, other: Self) -> Self:
         return self.cat(other)
 
-    def __getitem__(self, idx: Tensor) -> 'BBOX':
+    def __getitem__(self, idx: Tensor) -> Self:
         new_box = self.bbox[idx]
         if self.conf is not None:
             new_conf = self.conf[idx]
@@ -130,7 +130,7 @@ class BBox():
     def __len__(self):
         return len(self.bbox)
 
-    def inside(self, other: 'BBOX') -> Tensor:
+    def inside(self, other: Self) -> Tensor:
         assert len(self)==len(other), f'Length should be the same for bbox __contain__, first: {len(other)}, second: {len(self)}'  # TODO: this assertion should be updated 
         this_box = self.convert('xcycwh').bbox
         other_box = other.convert('xyxy').bbox
