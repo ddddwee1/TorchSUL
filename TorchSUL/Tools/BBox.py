@@ -15,7 +15,7 @@ class BBox():
     def __init__(self, bbox: Tensor, box_format: Literal['xyxy', 'x1y1wh', 'xcycwh'], conf: Optional[Tensor]=None): 
         # dont use inplace
         assert (bbox.shape[-1] == 4) or (bbox.shape[-1] == 5)
-        assert len(bbox.shape)>=2
+        assert len(bbox.shape)>=1, 'BBox must has n_dim >= 1'
         self.bbox = bbox[..., :4].clone()
         if conf is None:
             if bbox.shape[-1] == 4:
@@ -108,7 +108,7 @@ class BBox():
         return self.distance(other)
 
     def cat(self, other: 'BBOX') -> 'BBOX': 
-        assert self.box_format==other.box_format
+        assert self.box_format==other.box_format, 'box format should be the same for concatenation'
         new_box = torch.cat([self.bbox, other.bbox], dim=0)
         if (self.conf is not None) and (other.conf is not None):
             new_conf = torch.cat([self.conf, other.conf], dim=0)
@@ -131,7 +131,7 @@ class BBox():
         return len(self.bbox)
 
     def inside(self, other: 'BBOX') -> Tensor:
-        assert len(self)==len(other), f'Length should be the same for bbox __contain__, first: {len(other)}, second: {len(self)}'  # TODO:this assertion should be updated 
+        assert len(self)==len(other), f'Length should be the same for bbox __contain__, first: {len(other)}, second: {len(self)}'  # TODO: this assertion should be updated 
         this_box = self.convert('xcycwh').bbox
         other_box = other.convert('xyxy').bbox
         xs = this_box[..., 0]
