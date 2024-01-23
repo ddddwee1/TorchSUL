@@ -39,7 +39,7 @@ to_standard_torch = Utils.to_standard_torch
 inspect_quant_params = Utils.inspect_quant_params
 
 ## Tools 
-BBoxes = Tools.BBoxes
+BBox = Tools.BBox
 # ## The following is suggested to be accessed by importing TorchSUL.Tools 
 # Path = Tools.Path
 # VideoSaver = Tools.VideoSaver
