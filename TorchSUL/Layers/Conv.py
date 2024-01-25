@@ -11,7 +11,7 @@ from torch.nn.parameter import Parameter
 
 from ..Base import Model
 from ..Consts.Types import *
-from ..Quant import QQuantizers, QuantizerBase
+from ..Quant import QQuantizers, QuantizerBase, LayerCalibrator
 
 
 ## Resnet style initialization 
@@ -65,11 +65,18 @@ class ConvBase(Model, ABC):
             bit_type = self.get_flag('QActBit')
             if bit_type is None:
                 bit_type = 'int8'
-            obs_type = self.get_flag('QActObserver')
-            if obs_type is None:
-                obs_type = 'minmax'
-            self.input_quantizer = QQuantizers['uniform'](zero_offset=False, bit_type=bit_type, observer=obs_type)
-            self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
+            
+            if self.get_flag('LayerwiseQuant'):
+                self.input_quantizer = QQuantizers['uniform'](zero_offset=False, bit_type=bit_type, observer='placeholder')
+                self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True, observer='placeholder')
+                self.calibrator = LayerCalibrator([self.input_quantizer, self.w_quantizer], self.forward)
+                self.register_forward_hook(self.calibrator.layer_hook)
+            else:
+                obs_type = self.get_flag('QActObserver')
+                if obs_type is None:
+                    obs_type = 'minmax'
+                self.input_quantizer = QQuantizers['uniform'](zero_offset=False, bit_type=bit_type, observer=obs_type)
+                self.w_quantizer = QQuantizers['uniform'](zero_offset=True, mode='channel_wise', is_weight=True)
 
     @abstractmethod
     def _parse_args(self, shape: List[int]):
@@ -178,7 +185,7 @@ class deconv2D(ConvBase):
             weight = self.w_quantizer(weight)
         x = F.conv_transpose2d(x, weight, self.bias, self.stride, self.pad, self.out_pad, self.groups, self.dilation_rate)
         outh, outw = x.shape[2], x.shape[3]
-        if self.padmethod=='SAME_LEFT':
+        if self.pad_mode=='SAME_LEFT':
             if outh!=inh*self.stride or outw!=inw*self.stride:
                 x = x[:,:,:inh*self.stride,:inw*self.stride]
         return x 
