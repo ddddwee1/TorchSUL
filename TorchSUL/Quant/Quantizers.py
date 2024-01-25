@@ -44,7 +44,7 @@ class UniformQuantizer(QuantizerBase):
         x = x.contiguous()
         if self._quant_calibrating:
             x = self.observer(x)
-        if self._quant and self._quant_calibrated and (self.observer.scale is not None):
+        if self._quant and (self.observer.scale is not None):
             if self.observer.scale.device!=x.device:
                 self.observer.to(x.device)
             if self.get_flag('dump_onnx'):

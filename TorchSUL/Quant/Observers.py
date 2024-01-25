@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type, Union, Tuple, Dict
+from typing import Type, Union, Tuple, Dict, List
 
 import torch
 from loguru import logger
@@ -82,12 +82,44 @@ class ObserverBase(Model, ABC):
             self.scale = Parameter(state_dict[prefix + 'scale'])
             self.zero_point = Parameter(state_dict[prefix + 'zero_point'])
         else:
-            logger.debug(f'No scale in checkpoint for layer [{prefix}]')
+            logger.trace(f'No scale in checkpoint for layer [{prefix}]')
 
     def _save_to_state_dict(self, destination, prefix, keep_vars):
         if self._quant_calibrated:
             destination[prefix + 'scale'] = self.scale 
             destination[prefix + 'zero_point'] = self.zero_point
+
+
+class PlaceholderObserver(ObserverBase):
+    def observe(self, x):
+        if self.mode == 'channel_wise':
+            x = x.transpose(0, self.dim)
+            x = x.flatten(1)
+            minv = x.min(dim=1)[0]
+            maxv = x.max(dim=1)[0]
+        else:
+            minv = x.min()
+            maxv = x.max()
+        if (self.min_val is None) or (self.max_val is None):
+            self.min_val = minv
+            self.max_val = maxv
+        else:
+            self.min_val = torch.minimum(self.min_val, minv)
+            self.max_val = torch.maximum(self.max_val, maxv)
+            
+    def initialize(self, *args, **kwargs):
+        self.init_scale = None 
+        self.zero_point = None 
+
+    def init_quant_params(self):
+        self.init_scale, self.zero_point = self.get_quant_params(self.max_val, self.min_val)
+
+    def resize_scale(self, factor):
+        self.scale = Parameter(factor * self.init_scale)
+        self.zero_point = Parameter(self.zero_point)
+        
+    def _finish_calibrate(self):
+        ...
 
 
 class PercentileObserver(ObserverBase):
@@ -134,7 +166,10 @@ class MinMaxObserver(ObserverBase):
 
 
 class OmseObserver(ObserverBase):
-    x_buffer: Tensor
+    x_buffer: List[Tensor]
+
+    def initialize(self, *args, **kwargs):
+        self.x_buffer = []
 
     def observe(self, x):
         if self.mode == 'channel_wise':
@@ -152,7 +187,7 @@ class OmseObserver(ObserverBase):
             self.min_val = torch.minimum(self.min_val, minv)
             self.max_val = torch.maximum(self.max_val, maxv)
 
-        self.x_buffer = x
+        self.x_buffer.append(x)
 
     @torch.no_grad()
     def _least_square(self, max_val: Tensor, min_val: Tensor, scale: Tensor, factor: float):
@@ -163,7 +198,7 @@ class OmseObserver(ObserverBase):
 
         scale = scale.cuda()
         zero_point = zero_point.cuda()
-        x_buffer = self.x_buffer.cuda()
+        x_buffer = torch.cat(self.x_buffer, dim=0).cuda()
 
         scale = scale * factor
         x_buffer_q = x_buffer / scale + zero_point
@@ -194,6 +229,7 @@ class OmseObserver(ObserverBase):
         return scale_best, zero_point_best
 
 
-QObservers: Dict[Union[QObserverTypes, str], Type[ObserverBase]] = {"minmax": MinMaxObserver, 'percentile': PercentileObserver, 'omse': OmseObserver}
+QObservers: Dict[Union[QObserverTypes, str], Type[ObserverBase]] = \
+        {"minmax": MinMaxObserver, 'percentile': PercentileObserver, 'omse': OmseObserver, 'placeholder': PlaceholderObserver}
 ##### END: Observer classes 
 
