@@ -31,6 +31,8 @@ NNUpSample = L.NNUpSample
 
 ## Quantization related 
 QAct = Qnt.QAct
+QMatmul = Qnt.QMatmul
+QAdd = Qnt.QAdd
 
 ## Utils 
 Saver = Utils.Saver
