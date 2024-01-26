@@ -75,6 +75,18 @@ def inspect_quant_params(module: nn.Module, result_dict: Dict[str, Any]=dict(), 
         except:
             logger.warning(f'Quant params of layer: {prefix} cannot be properly retrieved. Maybe this layer is never called in calibration.')
         return result_dict
+    if isinstance(module, (QAdd, QMatmul)):
+        try:
+            if hasattr(module, 'a_quantizer'):
+                scale = module.a_quantizer.observer.scale
+                zero_point = module.a_quantizer.observer.zero_point
+                result_dict[prefix+'/input__1'] = [scale, zero_point.round()] # type: ignore
+                scale = module.b_quantizer.observer.scale
+                zero_point = module.b_quantizer.observer.zero_point
+                result_dict[prefix+'/input__2'] = [scale, zero_point.round()] # type: ignore
+        except:
+            logger.warning(f'Quant params of layer: {prefix} cannot be properly retrieved. Maybe this layer is never called in calibration.')
+        return result_dict
     if isinstance(module, (nn.ModuleList, nn.Sequential)):
         for i in range(len(module)):
             inspect_quant_params(module[i], result_dict=result_dict, prefix=prefix+'.%d'%i)
