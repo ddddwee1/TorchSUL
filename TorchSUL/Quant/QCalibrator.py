@@ -39,6 +39,8 @@ class LayerCalibrator(Model):
 
     @torch.no_grad()
     def _finish_calibrate(self):
+        if len(self.inputs)==0:
+            return 
         scr_func_flag = self.get_flag('CalibScoreFunc')
         sim_func = cosine_score if scr_func_flag=='cosine' else l2_score
         logger.debug(f'LayerCalibrator post processing... Score function: {"L2" if scr_func_flag is None else scr_func_flag}')
