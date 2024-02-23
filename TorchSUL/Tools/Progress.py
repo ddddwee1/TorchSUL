@@ -13,12 +13,12 @@ class SpeedColumn(ProgressColumn):
         else:
             return Text(f"{speed:.2f} it/s", style="progress.data.speed")
 
-def progress_bar(width: int=40) -> Progress:
-    is_debug_mode = False
-    gettrace = getattr(sys, 'gettrace', None)
-    if gettrace is not None:
-        if gettrace() is not None:
-            is_debug_mode = True
+def progress_bar(width: int=40, disable: bool=False) -> Progress:
+    # is_debug_mode = False
+    # gettrace = getattr(sys, 'gettrace', None)
+    # if gettrace is not None:
+    #     if gettrace() is not None:
+    #         is_debug_mode = True
 
     prog = Progress(
         TextColumn('[progress.description]{task.description}'), 
@@ -26,6 +26,6 @@ def progress_bar(width: int=40) -> Progress:
         MofNCompleteColumn(), 
         TimeRemainingColumn(elapsed_when_finished=True), 
         SpeedColumn(),
-        disable = is_debug_mode,
+        disable = disable,
         )
     return prog
