@@ -8,7 +8,7 @@ import sys
 from loguru import logger 
 
 logger.remove()
-fmt = '\n<g>{time:YYYY-MM-DD HH:mm:ss}</g> | PID: <c>{process}</c> | <lvl>{level}</lvl> - <lvl>{message}</lvl> '
+fmt = '<g>{time:YYYY-MM-DD HH:mm:ss}</g> | PID: <c>{process}</c> | <lvl>{level}</lvl> - <lvl>{message}</lvl> '
 logger.add(sys.stderr, format=fmt)
 
 
