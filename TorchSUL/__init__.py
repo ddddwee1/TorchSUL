@@ -14,7 +14,7 @@ class PrintStream():
         self.console = rich.get_console()
 
     def write(self, message):
-        self.console.print(message, end='')
+        self.console.out(message, end='')
 
 
 logger.remove()
