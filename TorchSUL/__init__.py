@@ -6,21 +6,17 @@ sul_tool = Tools
 # modify loguru format. Add \n in front, in case other modules overrides stderr
 import sys 
 from loguru import logger 
-import rich 
 
 
 class PrintStream():
-    def __init__(self):
-        self.console = rich.get_console()
-
     def write(self, message):
-        self.console.out(message, end='')
+        print(message, end='')
 
 
 logger.remove()
 fmt = '<g>{time:YYYY-MM-DD HH:mm:ss}</g> | PID: <c>{process}</c> | <lvl>{level}</lvl> - <lvl>{message}</lvl> '
 stream_obj = PrintStream()
 # logger.add(sys.stderr, format=fmt)
-logger.add(stream_obj, format=fmt)
+logger.add(stream_obj, format=fmt, colorize=True)
 
 
