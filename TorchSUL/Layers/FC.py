@@ -30,7 +30,7 @@ class fcLayer(Model):
         self.outsize = outsize
         self.usebias = usebias
         self.norm = norm
-        self.bias = None 
+        # self.bias = None 
 
     def build(self, *inputs):
         self.insize = inputs[0].shape[-1]
